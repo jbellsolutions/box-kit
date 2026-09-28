@@ -1,0 +1,16 @@
+{
+  "_comment": [
+    "data-box is ONE server. Attach by URL. Set DATABOX_URL and DATABOX_TOKEN before use.",
+    "The default below is a data-box running on this machine (`data-box serve`, port 8092);",
+    "point DATABOX_URL at your own server's /mcp when you have one."
+  ],
+  "mcpServers": {
+    "data-box": {
+      "type": "http",
+      "url": "${DATABOX_URL:-http://127.0.0.1:8092/mcp}",
+      "headers": {
+        "Authorization": "Bearer ${DATABOX_TOKEN}"
+      }
+    }
+  }
+}

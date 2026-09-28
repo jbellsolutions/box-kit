@@ -1,0 +1,51 @@
+# The only public surface. Caddy terminates TLS and forwards to the gateway on loopback.
+# The gateway checks the bearer token itself; Caddy does not need to know it.
+#
+# Install on the host (not in compose) so a stack restart never drops TLS. Substitute the
+# domain as you copy — Caddy reads {$BB_DOMAIN} from the caddy service's own environment,
+# so prefixing the cp with BB_DOMAIN=... does nothing and leaves an empty site address:
+#   sudo sed "s|{\$BB_DOMAIN}|box.example.com|" Caddyfile | sudo tee /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+
+{$BB_DOMAIN} {
+	encode zstd gzip
+
+	# Liveness only — no token, no data. Safe to expose to an uptime checker.
+	handle /health {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle /mcp* {
+		reverse_proxy 127.0.0.1:8080 {
+			# MCP streams; do not buffer or time the response out early.
+			flush_interval -1
+			transport http {
+				read_timeout 600s
+				write_timeout 600s
+			}
+		}
+	}
+
+	handle /status {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	# The same tools as HTTP/JSON (rest.py), and its OpenAPI description.
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8080 {
+			transport http {
+				read_timeout 1000s
+				write_timeout 1000s
+			}
+		}
+	}
+
+	handle /openapi.json {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	# Everything else is not part of the contract.
+	handle {
+		respond "not found" 404
+	}
+}

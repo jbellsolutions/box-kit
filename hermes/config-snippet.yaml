@@ -1,0 +1,18 @@
+# Paste these two entries under `mcp_servers:` in ~/.hermes/config.yaml
+# (or ~/.hermes/profiles/<profile>/config.yaml). Put the values in the matching .env:
+#   BROWSER_BOX_TOKEN=...   DATABOX_TOKEN=...     (`make env` in the kit prints them)
+# Change the URLs if your servers are not on this machine.
+  browser-box:
+    url: http://127.0.0.1:8080/mcp
+    headers:
+      Authorization: Bearer ${env:BROWSER_BOX_TOKEN}
+    connect_timeout: 60
+    timeout: 960        # `task` can run for minutes
+    enabled: true
+  data-box:
+    url: http://127.0.0.1:8092/mcp
+    headers:
+      Authorization: Bearer ${env:DATABOX_TOKEN}
+    connect_timeout: 60
+    timeout: 120
+    enabled: true

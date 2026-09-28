@@ -1,0 +1,24 @@
+{
+  "name": "data-box",
+  "version": "0.1.0",
+  "description": "Web data over one MCP endpoint: turn any public URL into markdown, text, HTML or links, and follow long jobs. Starts free (direct fetch); paid sources (Firecrawl, Bright Data, Decodo, Apify) switch on when their keys are set on the server.",
+  "author": {
+    "name": "AI Integraterz",
+    "url": "https://github.com/jbellsolutions"
+  },
+  "homepage": "https://github.com/jbellsolutions/box-kit",
+  "repository": "https://github.com/jbellsolutions/box-kit",
+  "license": "MIT",
+  "keywords": [
+    "scraping",
+    "data",
+    "mcp",
+    "self-hosted",
+    "firecrawl",
+    "apify",
+    "brightdata"
+  ],
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "mcpServers": "./.mcp.json"
+}

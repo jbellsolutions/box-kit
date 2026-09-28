@@ -1,0 +1,29 @@
+{
+  "name": "box-kit",
+  "owner": {
+    "name": "AI Integraterz",
+    "url": "https://github.com/jbellsolutions"
+  },
+  "metadata": {
+    "description": "Two self-hosted servers for agents, each one MCP endpoint: browser-box (a real browser you drive) and data-box (web data with a cost cap on every call). Run them on your own machine or server with your own keys.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "browser-box",
+      "source": "./plugins/browser-box",
+      "description": "Read, click through, log into and screenshot web pages through your own browser-box: fetch, read, session and status free; act, task and computer when you add their keys.",
+      "author": { "name": "AI Integraterz" },
+      "category": "engineering",
+      "homepage": "https://github.com/jbellsolutions/box-kit"
+    },
+    {
+      "name": "data-box",
+      "source": "./plugins/data-box",
+      "description": "Web data through your own data-box: any public URL to markdown, text, HTML or links, with a cost cap on every call. Free direct fetch first; paid sources when you add their keys.",
+      "author": { "name": "AI Integraterz" },
+      "category": "engineering",
+      "homepage": "https://github.com/jbellsolutions/box-kit"
+    }
+  ]
+}

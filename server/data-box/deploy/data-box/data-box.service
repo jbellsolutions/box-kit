@@ -1,0 +1,33 @@
+# Installed by deploy/data-box/activate_release.py from the active release; edit it here, not on the box.
+[Unit]
+Description=data-box: one door to data over MCP, HTTP/JSON and CLI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=databox
+Group=databox
+WorkingDirectory=/var/lib/data-box
+EnvironmentFile=/etc/data-box.env
+EnvironmentFile=/opt/data-box/current/release.env
+ExecStart=/opt/data-box/current/.venv/bin/python -m data_box.server
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+MemoryMax=600M
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/data-box
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

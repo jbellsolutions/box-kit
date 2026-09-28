@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "data-box"
+version = "0.1.0"
+description = "A self-hosted data server: public web pages to clean content over MCP, HTTP and a CLI, with a cost cap on every call."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = ["mcp>=1.20,<2", "starlette>=0.40", "uvicorn>=0.34,<1", "httpx>=0.28,<1", "jsonschema>=4.23,<5"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+data-box = "data_box.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["data_box*"]

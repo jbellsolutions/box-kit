@@ -1,0 +1,141 @@
+# One engine, one door. Nothing is published beyond loopback; Caddy is the only public surface.
+services:
+  steel:
+    # THE browser. Owns the only Chromium on this host.
+    # STEEL_REF is a tag (":latest") or, in production, a digest ("@sha256:..."). A digest needs
+    # the @ — "repo:sha256:..." is not a valid reference — so the separator lives in the value.
+    # Get one with: docker buildx imagetools inspect ghcr.io/steel-dev/steel-browser-api:latest
+    # and pin the MANIFEST LIST digest, not a single architecture's.
+    image: ghcr.io/steel-dev/steel-browser-api${STEEL_REF:-:latest}
+    restart: unless-stopped
+    environment:
+      - DOMAIN=localhost:3000
+      - CDP_DOMAIN=localhost:9223
+      - LOG_STORAGE_ENABLED=true
+      - LOG_STORAGE_PATH=/data/logs/browser-logs.duckdb
+      # Steel's instrumentation (installMouseHelper) rejects unhandled when a CDP client closes a
+      # tab mid-navigation, and Node's default then kills the WHOLE server: every session and
+      # cookie on the box, gone. Reproduced 4/5 on 2026-09-23. Warn and carry on instead.
+      - NODE_OPTIONS=--unhandled-rejections=warn
+    volumes:
+      - steel-logs:/data/logs
+      - steel-exports:/tmp/steel-browser-exports
+      - steel-cache:/app/.cache
+    ports:
+      # Loopback only. This one port is REST *and* CDP: Steel proxies CDP at ws://<host>:3000/.
+      # (Its raw 9223 port is not published: it advertises a websocket URL with no port in it,
+      # so no client can use it, and an unused CDP port is only attack surface.)
+      - "127.0.0.1:3000:3000"
+    deploy:
+      resources:
+        limits:
+          memory: ${STEEL_MEMORY:-1536m}
+          cpus: "${STEEL_CPUS:-1.2}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/v1/health || curl -fsS http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks: [box]
+
+  agent-jev:
+    # Jev behind the act tool: it decides which element each plain-words step means and drives
+    # steel's Chromium over CDP. No browser of its own and no brain key: it grounds steps, it does
+    # not plan them. Built by `make jev-image` from JEV_DIR at exactly JEV_REF. Its port is never
+    # published; only the gateway reaches it, with BB_JEV_TOKEN.
+    image: browser-box-jev:${JEV_REF:-unset}
+    profiles: [jev]
+    restart: unless-stopped
+    environment:
+      # Empty token = agent-jev refuses to start off loopback (JEV_HOST=0.0.0.0 in the image).
+      - JEV_TOKEN=${BB_JEV_TOKEN:-}
+      # Empty = keyword heuristics instead of Jev decisions; status says which is running.
+      - TYPESAFE_API_KEY=${TYPESAFE_API_KEY:-}
+      - CDP_URL=ws://steel:3000/
+      - JEV_BLOCK_PRIVATE=1
+    depends_on:
+      steel:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${JEV_MEMORY:-384m}
+          cpus: "${JEV_CPUS:-0.5}"
+    networks: [box]
+
+  agent-browseruse:
+    # Browser-Use behind task(surface="browser"): an LLM step loop that drives steel's Chromium
+    # over CDP, one goal at a time, in a tab of its own that it cannot leave. No browser of its
+    # own. The step model runs on OpenRouter with this box's key. Its port is never published;
+    # only the gateway reaches it, with BB_BROWSERUSE_TOKEN.
+    build: ./agents/browseruse
+    profiles: [browseruse]
+    restart: unless-stopped
+    environment:
+      # Empty token = it refuses to start (it listens on the compose network, not loopback).
+      - BU_TOKEN=${BB_BROWSERUSE_TOKEN:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - BU_MODEL=${BB_BROWSERUSE_MODEL:-z-ai/glm-5.3-flash}
+      - CDP_URL=ws://steel:3000/
+    depends_on:
+      steel:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${BROWSERUSE_MEMORY:-640m}
+          cpus: "${BROWSERUSE_CPUS:-0.6}"
+    networks: [box]
+
+  gateway:
+    # The only thing that talks to the outside world. No browser, no LLM.
+    build: ./gateway
+    restart: unless-stopped
+    environment:
+      - BB_TOKEN=${BB_TOKEN:?set BB_TOKEN in .env}
+      - BB_STEEL_URL=http://steel:3000
+      - BB_STEEL_CDP_URL=ws://steel:3000/
+      - BB_LANE_LOCK=/lane/lane.lock
+      - BB_LANE_WAIT_SECONDS=${BB_LANE_WAIT_SECONDS:-120}
+      - BB_LOG_LEVEL=${BB_LOG_LEVEL:-INFO}
+      # Orgo cloud computers. Empty key = the computer and task tools are not listed at all.
+      - ORGO_API_KEY=${ORGO_API_KEY:-}
+      - ORGO_COMPUTER_ID=${ORGO_COMPUTER_ID:-}
+      - ORGO_MODEL=${ORGO_MODEL:-claude-sonnet-5}
+      - BB_ORGO_AUTOCREATE=${BB_ORGO_AUTOCREATE:-}
+      # Jev (the act tool). Empty = act is not listed at all.
+      - BB_JEV_URL=${BB_JEV_URL:-}
+      - BB_JEV_TOKEN=${BB_JEV_TOKEN:-}
+      # Browser-Use (task on the browser). Empty = task(surface="browser") is not offered.
+      - BB_BROWSERUSE_URL=${BB_BROWSERUSE_URL:-}
+      - BB_BROWSERUSE_TOKEN=${BB_BROWSERUSE_TOKEN:-}
+    volumes:
+      # Shared so future agent containers contend for the SAME browser lane.
+      - lane:/lane
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      steel:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${GATEWAY_MEMORY:-256m}
+          cpus: "${GATEWAY_CPUS:-0.5}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health',timeout=5).status==200 else 1)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks: [box]
+
+networks:
+  box:
+    driver: bridge
+
+volumes:
+  steel-logs:
+  steel-exports:
+  steel-cache:
+  lane:

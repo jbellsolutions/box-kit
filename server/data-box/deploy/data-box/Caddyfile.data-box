@@ -1,0 +1,8 @@
+# data-box's site block, added to /etc/caddy/Caddyfile. sslip.io resolves the name to the droplet's
+# own address, so Caddy gets a certificate for it with no DNS setup.
+your-data-box.example.com {
+    encode gzip
+    reverse_proxy 127.0.0.1:8092 {
+        flush_interval -1
+    }
+}

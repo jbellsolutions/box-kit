@@ -1,0 +1,15 @@
+services:
+  data-box:
+    build: .
+    # All settings, the token included, come from .env only: a DATABOX_TOKEN exported in your shell
+    # must not leak into this container. data-box refuses to start without a token.
+    env_file: .env
+    ports:
+      - "127.0.0.1:8092:8092"
+    volumes:
+      - databox-state:/data
+    mem_limit: 600m
+    restart: unless-stopped
+
+volumes:
+  databox-state:

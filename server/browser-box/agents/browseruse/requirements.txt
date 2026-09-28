@@ -1,0 +1,7 @@
+# Top-level pins. The image installs requirements.lock (every transitive version, frozen from a
+# build of this file) so two builds on two days get the same Browser-Use.
+browser-use==0.13.10
+starlette==1.6.0
+uvicorn==0.53.0
+websockets==15.0.1
+httpx==0.28.1
