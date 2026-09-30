@@ -6,8 +6,8 @@
 What it does, and what it never does:
 - It only ADDS or UPDATES files under <hermes-home>/profiles/<profile>/skills/data-box/. Nothing
   outside that folder is written, and nothing anywhere is deleted, moved or renamed.
-- A skill whose name is already used by another skill in the profile (the firecrawl profile has its
-  own firecrawl-alexandria, ai-guy-go-to-market its own discolike) is installed as data-box-<name>,
+- A skill whose name is already used by another skill in the profile (say the profile already has its
+  own firecrawl-alexandria or discolike skill) is installed as data-box-<name>,
   and every "**<name>**" mention in the installed skills is rewritten to match, so the router still
   points at the right one. The profile's own skill is left exactly as it was.
 - Every file it writes is recorded with its sha256 in skills/data-box/.data-box-managed.json. On a

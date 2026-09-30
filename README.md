@@ -5,7 +5,7 @@ Two small servers that give any AI agent real web abilities, each behind one MCP
 | Server | What it gives your agent | Free out of the box | Add your own keys for |
 |---|---|---|---|
 | **browser-box** | A real browser it drives: read JavaScript pages, click, type, log in and stay logged in, screenshots | `fetch`, `read`, `session`, `status` | `task` (Browser-Use, needs an OpenRouter key), `computer` (an Orgo cloud desktop) |
-| **data-box** | Web data: any public URL to markdown, text, HTML or links, with a cost cap on every call | `scrape` (direct fetch), `job`, `status` | paid scraping sources (Firecrawl, Bright Data, Decodo, Apify) as they are wired in |
+| **data-box** | Web data and lead lists, plan first: any public URL to markdown, text, HTML or links, or a surveyed, priced plan that runs only on your approval. One skill per data tool | `scrape` (direct fetch), `sources`, `job`, `status` | `plan` and `execute` (Firecrawl and its Alexandria catalog, needs a Firecrawl key); more data tools as they are wired in |
 
 You run them yourself — on your own computer (Docker) or a small server — with **your own**
 keys. Nothing here calls anyone else's server or bills anyone else's account.

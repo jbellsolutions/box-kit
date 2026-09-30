@@ -1,7 +1,7 @@
 {
   "name": "data-box",
-  "version": "0.1.0",
-  "description": "Web data over one MCP endpoint: turn any public URL into markdown, text, HTML or links, and follow long jobs. Starts free (direct fetch); paid sources (Firecrawl, Bright Data, Decodo, Apify) switch on when their keys are set on the server.",
+  "version": "0.2.0",
+  "description": "Web data and lead lists over one MCP endpoint, plan first: scrape any public URL free, or survey every source, see a priced plan and pull only on approval. One skill per data tool (Firecrawl, Alexandria, DiscoLike, MoltSets, GetLeads, Consulti, Lead Radar, Jev); each tool switches on when its key is set on your server.",
   "author": {
     "name": "AI Integraterz",
     "url": "https://github.com/jbellsolutions"
