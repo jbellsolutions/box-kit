@@ -4,6 +4,9 @@
   data-box scrape https://example.com --format text
   data-box job get job_ab12cd34 --wait-seconds 30
   data-box job export job_ab12cd34 --format csv > rows.csv
+  data-box sources "roofing contractors in Austin TX" --fields '["phone","website"]'
+  data-box plan "roofing contractors" --geo '["Austin, TX"]' --count 50 --fields '["phone","website"]'
+  data-box execute plan_ab12cd34 --approve true     # only after the user said yes to the plan
   data-box call scrape '{"url": "https://example.com"}'
   data-box serve          # run the server (needs DATABOX_TOKEN)
   data-box openapi        # print the OpenAPI document generated from the tool cards
@@ -44,6 +47,10 @@ def parse(tool: str, argv: list[str]) -> dict[str, Any]:
     positional_names = list(spec.input_schema.get("required", []))
     if tool == "job":
         positional_names = ["action", "job_id"]
+    elif tool in ("plan", "sources"):
+        positional_names = ["request"]
+    elif tool == "execute":
+        positional_names = ["plan_id"]
     args: dict[str, Any] = {}
     positionals: list[str] = []
     i = 0

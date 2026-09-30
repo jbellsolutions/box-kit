@@ -19,6 +19,12 @@ class Parse(unittest.TestCase):
         self.assertEqual(parse("job", ["get", "job_1", "--wait-seconds", "10"]),
                          {"action": "get", "job_id": "job_1", "wait_seconds": 10})
 
+    def test_plan_takes_the_request_and_execute_the_plan_id_positionally(self):
+        self.assertEqual(parse("plan", ["roofers in Austin", "--count", "50", "--geo", '["Austin, TX"]']),
+                         {"request": "roofers in Austin", "count": 50, "geo": ["Austin, TX"]})
+        self.assertEqual(parse("execute", ["plan_1", "--approve", "true"]), {"plan_id": "plan_1", "approve": True})
+        self.assertEqual(parse("sources", ["roofers"]), {"request": "roofers"})
+
     def test_unknown_flag_and_tool_are_usage_errors(self):
         with self.assertRaises(SystemExit):
             parse("scrape", ["https://a.test", "--colour", "red"])

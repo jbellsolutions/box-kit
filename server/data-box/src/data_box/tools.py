@@ -14,9 +14,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
-from . import VERSION, config, fetch
+from . import VERSION, config, execution, fetch, planning
 from .jobs import JobContext, Runner, answer
-from .ledger import Ledger
+from .ledger import Conflict, Ledger
+from .providers.firecrawl import Firecrawl, FirecrawlError
 from .security import require_public_web
 
 WAIT = {"type": "integer", "minimum": 0, "maximum": 60, "default": 30,
@@ -40,12 +41,20 @@ class Card:
 
 
 class Box:
-    """What handlers work with: the ledger and the job runner. One per server process."""
+    """What handlers work with: the ledger, the job runner and the provider clients. One per server process."""
 
-    def __init__(self, ledger: Ledger, runner: Runner):
+    def __init__(self, ledger: Ledger, runner: Runner, firecrawl: Callable[[], Firecrawl] | None = None):
         self.ledger = ledger
         self.runner = runner
+        self.firecrawl = firecrawl or (lambda: Firecrawl())
         self.started = time.time()
+
+
+def _plan_or_refuse(box: Box, plan_id: str) -> dict:
+    try:
+        return box.ledger.plan(plan_id)
+    except KeyError:
+        raise ValueError(f"no plan {plan_id!r}; plan action=list shows recent ones") from None
 
 
 # --- scrape ----------------------------------------------------------------------------------
@@ -57,7 +66,7 @@ def _bounded(text: str, limit: int) -> tuple[str, bool]:
     return (text[:limit] + "…", True) if len(text) > limit else (text, False)
 
 
-async def _scrape_work(args: dict, ctx: JobContext) -> dict:
+async def _scrape_work(args: dict, ctx: JobContext, box: Box) -> dict:
     fmt = args.get("format", "markdown")
     limit = config.text_limit()
     started = time.monotonic()
@@ -82,8 +91,26 @@ async def _scrape_work(args: dict, ctx: JobContext) -> dict:
         result["content_truncated"] = cut or page.truncated
     if verdict:
         result["blocked"] = verdict
-        result["next"] = ("no paid rung is configured on this box yet, so the ladder stops at the free fetch; "
-                          "status lists which providers would take the next step")
+        made = None
+        if config.configured("firecrawl"):
+            # The free rung could not read it. The paid rungs are a plan the user approves, never a surprise.
+            try:
+                made = await planning.make_plan({"kind": "scrape", "url": args["url"], "format": fmt}, ctx.ledger,
+                                                box.firecrawl())
+            except (FirecrawlError, ValueError, Conflict) as exc:
+                result["next"] = f"the free fetch was not enough, and a plan for the paid rungs could not be made: {exc}"[:300]
+        if made:
+            game = made["body"]["step_3_game_plan"]
+            lane = (game.get("lanes") or [{}])[0]
+            result["plan"] = {"plan_id": made["plan_id"], "status": made["status"], "budget_usd": made["budget_usd"],
+                              "rungs": lane.get("ladder"), "credits": game.get("credits_total"),
+                              "warnings": game.get("warnings")}
+            result["next"] = (f"the free fetch was not enough; plan {made['plan_id']} takes it to Firecrawl (rung 1) for "
+                              f"up to ${made['budget_usd']:.4f}. Show it to the user, and on a yes call execute with "
+                              f"plan_id={made['plan_id']} and approve=true")
+        elif "next" not in result:
+            result["next"] = ("no paid rung is configured on this box, so the ladder stops at the free fetch; "
+                              "status lists which providers would take the next step")
     result["_detail"] = f"{page.status_code} {page.final_url}"[:200]
     return result
 
@@ -92,7 +119,7 @@ async def scrape(args: dict, box: Box) -> dict:
     # Refuse a bad or private URL before a job exists; the DNS check runs inside the job.
     require_public_web(args["url"])
     cap = float(args.get("max_cost_usd", config.default_scrape_cap_usd()))
-    job = await box.runner.start("scrape", args, lambda ctx: _scrape_work(args, ctx), cap_usd=cap)
+    job = await box.runner.start("scrape", args, lambda ctx: _scrape_work(args, ctx, box), cap_usd=cap)
     return answer(await box.runner.wait(job["job_id"], args.get("wait_seconds", 30)))
 
 
@@ -100,6 +127,8 @@ async def scrape(args: dict, box: Box) -> dict:
 
 def _items(job: dict) -> list[Any]:
     result = job.get("result")
+    if isinstance(result, dict) and result.get("records_file") and result.get("plan_id"):
+        return execution.records_for(result["plan_id"])
     if isinstance(result, dict) and isinstance(result.get("items"), list):
         return result["items"]
     if isinstance(result, dict) and isinstance(result.get("links"), list):
@@ -153,7 +182,7 @@ async def job(args: dict, box: Box) -> dict:
 
 # --- status ----------------------------------------------------------------------------------
 
-WIRED: set[str] = set()  # providers data-box calls today; a configured provider not in here is reported as waiting
+WIRED: set[str] = {"firecrawl"}  # providers data-box calls today; a configured provider not in here is reported as waiting
 
 
 async def status(_args: dict, box: Box) -> dict:
@@ -171,6 +200,19 @@ async def status(_args: dict, box: Box) -> dict:
         if name in WIRED:
             entry["up"] = configured
             entry["detail"] = "ready" if configured else "not configured: set " + ", ".join(spec["env"])
+            if name == "firecrawl" and configured:
+                try:
+                    client = box.firecrawl()
+                    client.timeout = min(client.timeout, 10)
+                    balance = await client.credits()
+                    entry["balance_credits"] = balance.get("remaining")
+                    entry["plan_credits"] = balance.get("plan")
+                    entry["period_end"] = balance.get("period_end")
+                    if (balance.get("remaining") or 0) <= 0:
+                        entry["detail"] = "configured, but the balance is empty: paid plans cannot execute until credits are added"
+                except FirecrawlError as exc:
+                    entry["up"] = False
+                    entry["detail"] = f"configured, but the balance could not be read: {exc}"[:240]
         else:
             entry["up"] = False
             entry["detail"] = ("configured, but data-box does not call it yet" if configured
@@ -185,8 +227,119 @@ async def status(_args: dict, box: Box) -> dict:
         "tools_working_now": [t for t in offered if t not in down],
         "tools_unavailable": unavailable,
         "spend_last_24h_usd": box.ledger.spend_since(time.time() - 86400),
+        "plans_awaiting_approval": box.ledger.plans(20, "awaiting_approval"),
+        "plans_executing": box.ledger.plans(20, "executing"),
         "recent_calls": box.ledger.recent_calls(10),
     }
+
+
+# --- sources, plan, execute: the four steps --------------------------------------------------
+
+async def sources(args: dict, box: Box) -> dict:
+    """Step 2 on its own: every source that could serve, free. Without a URL it surveys for a pull."""
+    if not args.get("kind") and not (args.get("url") or args.get("urls")):
+        args = {**args, "kind": "pull"}
+    it = planning.intake(args)
+    surveyed, _ = await planning.survey(it, box.firecrawl() if config.configured("firecrawl") else None)
+    return {"intake": it, **surveyed}
+
+
+async def _plan_work(args: dict, ctx: JobContext, box: Box) -> dict:
+    made = await planning.make_plan(args, ctx.ledger, box.firecrawl(), ctx)
+    game = made["body"].get("step_3_game_plan", {})
+    return {"plan_id": made["plan_id"], "plan": made,
+            "_detail": f"{made['plan_id']}: {len(game.get('lanes') or [])} lane(s), ${game.get('usd_total', 0):.4f}"}
+
+
+async def plan(args: dict, box: Box) -> dict:
+    action = args.get("action", "new")
+    if action == "list":
+        return {"plans": box.ledger.plans(args.get("limit", 20), args.get("status"))}
+    if action in ("get", "cancel"):
+        if not args.get("plan_id"):
+            raise ValueError(f"plan action={action} needs a plan_id")
+        current = _plan_or_refuse(box, args["plan_id"])
+        if action == "get":
+            return current
+        if current["status"] in ("done", "expired", "cancelled"):
+            return current
+        if current["status"] == "executing" and current["jobs"]:
+            await box.runner.cancel(current["jobs"][-1])
+        box.ledger.set_plan_status(current["plan_id"], "cancelled")
+        return box.ledger.plan(current["plan_id"])
+    plan_args = {k: v for k, v in args.items() if k not in ("action", "plan_id", "wait_seconds", "status")}
+    it = planning.intake(plan_args)  # refuse a bad request before a job exists
+    planning.purge_old()
+    rate = config.firecrawl_usd_per_credit()
+    cap = config.preflight_max_credits() * rate if it["kind"] == "pull" and it["preflight"] else 0.0
+    if it["max_cost_usd"] is not None:
+        cap = min(cap, it["max_cost_usd"])
+    job = await box.runner.start("plan", plan_args, lambda ctx: _plan_work(plan_args, ctx, box), cap_usd=round(cap, 6))
+    return answer(await box.runner.wait(job["job_id"], args.get("wait_seconds", 60)))
+
+
+async def execute(args: dict, box: Box) -> dict:
+    if args.get("approve") is not True:
+        raise ValueError("execute runs only an approved plan: show the plan to the user and, on their yes, "
+                         "call execute again with approve=true")
+    prior = box.ledger.job_by_request(args.get("request_id"))
+    if prior:
+        return answer(await box.runner.wait(prior["job_id"], args.get("wait_seconds", 30)))
+    current = _plan_or_refuse(box, args["plan_id"])
+    if current["status"] == "executing" and current["jobs"]:
+        return answer(await box.runner.wait(current["jobs"][-1], args.get("wait_seconds", 30)))
+    approved = float(args.get("max_cost_usd", current["budget_usd"]))
+    plan_id = current["plan_id"]
+    current = box.ledger.begin_execution(plan_id, approved)  # approved and executing, atomically
+    try:
+        left = round(approved - box.ledger.plan_spent(plan_id), 6)
+        if left <= 0:
+            raise Conflict(f"plan {plan_id} has already spent its approved ${approved:.4f}; make a new plan to go further")
+        job_args = {"plan_id": plan_id, "max_cost_usd": approved, "drop_lanes": args.get("drop_lanes") or [],
+                    "request_id": args.get("request_id")}
+        fc = box.firecrawl()
+        job = await box.runner.start(
+            "execute", job_args, lambda ctx: execution.run(current, ctx, fc, box.ledger, job_args["drop_lanes"]), cap_usd=left)
+        box.ledger.attach_job(plan_id, job["job_id"])  # no await since start: nothing can slip in between
+    except BaseException:
+        box.ledger.set_plan_status(plan_id, "approved")
+        raise
+    return answer(await box.runner.wait(job["job_id"], args.get("wait_seconds", 30)))
+
+
+def _firecrawl_ready() -> bool:
+    return config.configured("firecrawl")
+
+
+PLAN_REQUEST = {
+    "request": {"type": "string", "maxLength": 2000,
+                "description": "What is wanted, in plain words: \"roofing contractors in Austin TX with phone and website\""},
+    "kind": {"type": "string", "enum": list(planning.KINDS),
+             "description": "pull (a list of records), search, scrape, crawl or extract; inferred when left out"},
+    "entity": {"type": "string", "enum": list(planning.ENTITIES), "description": "pull: what each record is (default business)"},
+    "count": {"type": "integer", "minimum": 1, "maximum": 50000, "description": "pull: how many unique records are wanted (default 100)"},
+    "fields": {"type": "array", "items": {"type": "string"}, "maxItems": 20,
+               "description": "pull: fields each record needs, e.g. [\"phone\", \"website\"]; lanes are ranked by how many they return"},
+    "queries": {"type": "array", "items": {"type": "string"}, "maxItems": 20,
+                "description": "pull/search: what to search for (default: the request); each is crossed with every place in geo"},
+    "geo": {"type": "array", "items": {"type": "string"}, "maxItems": 100,
+            "description": "pull: places to cover, e.g. [\"Austin, TX\", \"Dallas, TX\"]; each is a cell of the pull"},
+    "sources": {"type": "array", "items": {"type": "string"}, "maxItems": 10,
+                "description": "Sources the user named (e.g. \"bbb\", \"bing\", \"discolike\"): the plan uses only these, and says so when one cannot run"},
+    "url": {"type": "string", "description": "scrape/crawl: the page or site"},
+    "urls": {"type": "array", "items": {"type": "string"}, "maxItems": 100, "description": "extract: the pages"},
+    "schema": {"type": "object", "description": "extract (or scrape): JSON schema of what to pull out"},
+    "prompt": {"type": "string", "maxLength": 2000, "description": "extract: what to pull out, in words"},
+    "format": {"type": "string", "enum": ["markdown", "html", "links"], "default": "markdown"},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 1000, "description": "search: results per query; crawl: most pages"},
+    "max_cost_usd": {"type": "number", "minimum": 0, "maximum": 500,
+                     "description": "Most the whole plan may spend, preflight included (default: the estimate plus 20%)"},
+    "preflight": {"type": "boolean", "default": True,
+                  "description": "pull: spend one real call per lane (at most 25 credits) to prove it returns the entity"},
+    "max_lanes": {"type": "integer", "minimum": 1, "maximum": 6, "default": 3},
+    "oversample": {"type": "number", "minimum": 1, "maximum": 5, "default": 1.5,
+                   "description": "pull: raw records planned per wanted record, to cover duplicates across lanes"},
+}
 
 
 # --- the cards -------------------------------------------------------------------------------
@@ -209,15 +362,15 @@ TOOLS: list[Card] = [
         description=(
             "Read one public web page and return its content as markdown (default), plain text, raw HTML, or "
             "its list of links. Use it for any single URL you already have.\n"
-            "It climbs a ladder and stops at the first rung that returns the real page: a free direct fetch "
-            "first, then paid unblockers and finally a real browser, never spending past max_cost_usd "
-            "(default $0.05). rungs_tried shows each rung, its cost and why it was left. On this box today only "
-            "the free fetch is wired: a blocked, challenge or JavaScript-only page comes back with `blocked` "
-            "saying what stopped it.\n"
-            "Do NOT use it to search (use websearch), to walk a whole site (crawl), or for private addresses: "
+            "It runs the free direct fetch at once. Paid rungs never run without approval: when the free fetch "
+            "is blocked, gets a challenge or a JavaScript-only page, the result says what stopped it (`blocked`) "
+            "and carries a `plan` for the paid ladder (Firecrawl first; then Decodo, Bright Data, Firecrawl's "
+            "browser, Hyperbrowser and browser-box as they are wired) with its worst-case cost. Show that plan to "
+            "the user; on a yes, call execute with its plan_id and approve=true.\n"
+            "Do NOT use it to search or to walk a whole site (make a plan with kind search or crawl), or for private addresses: "
             "loopback, private, link-local and file targets are refused, on every redirect too.\n"
             "Returns: content (or links), title, description, status_code, final_url, rung, rungs_tried, "
-            "blocked when the page was not the real page, job_id and cost_usd."
+            "blocked and plan when the page was not the real page, job_id and cost_usd (always 0: the free rung)."
         ),
         input_schema={
             "type": "object",
@@ -258,9 +411,89 @@ TOOLS: list[Card] = [
             "additionalProperties": False,
         },
     ),
+    Card(
+        name="sources",
+        summary="Every source that could serve a need, tier by tier, and whether each can run (free)",
+        description=(
+            "Step 2 of the four-step workflow on its own: survey every source that could serve a request, without "
+            "planning or spending anything. Tier 1 is Firecrawl (its Alexandria providers, read live: price, page "
+            "size, pagination, inputs, terms, field fit), MoltSets and DiscoLike; tier 2 Decodo and Bright Data; "
+            "tier 3 Apify, the expensive backup's backup. Each source says whether it can run on this box and, if "
+            "not, why.\n"
+            "Use it to answer \"where could this data come from?\". To get the data, call plan instead: it runs "
+            "the same survey and turns it into a priced game plan.\n"
+            "Free."
+        ),
+        input_schema={"type": "object", "properties": {k: PLAN_REQUEST[k] for k in (
+            "request", "kind", "entity", "fields", "queries", "geo", "sources", "url", "urls", "schema", "prompt")},
+            "additionalProperties": False},
+    ),
+    Card(
+        name="plan",
+        summary="Steps 1-3: take a request, survey every source, return a priced game plan to approve",
+        description=(
+            "Every paid pull starts here, whatever door it comes through. plan takes the request (step 1), surveys "
+            "every source across the tiers and lists them all (step 2): for Firecrawl that means every tool in the "
+            "Alexandria categories the request is about, read with its contract. Then it narrows them to a game "
+            "plan (step 3): lanes ranked by records per credit x coverage x field fit, each proven by a preflight "
+            "call (a lane whose preflight returns none of the entity is dropped and the next one tried), split into "
+            "query x place cells and pages within the skill's caps, the dedupe keys, and the worst-case cost in "
+            "credits and dollars against the live Firecrawl balance. A source the user named is honoured.\n"
+            "Nothing but the preflight is spent (at most 25 credits, and never more than max_cost_usd). The plan "
+            "waits for approval and expires after 24 hours.\n"
+            "Then: SHOW THE WHOLE PLAN TO THE USER and wait for a yes. Only then call execute with its plan_id and "
+            "approve=true. Never approve a plan on the user's behalf.\n"
+            "action=get returns a plan, action=list recent plans, action=cancel withdraws one (stopping its job)."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["new", "get", "list", "cancel"], "default": "new"},
+                "plan_id": {"type": "string", "description": "get/cancel: which plan"},
+                "status": {"type": "string", "enum": ["preparing", "awaiting_approval", "approved", "executing",
+                                                      "done", "expired", "cancelled"], "description": "list: only plans in this status"},
+                **PLAN_REQUEST,
+                "wait_seconds": {**WAIT, "default": 60},
+                "request_id": REQUEST_ID,
+            },
+            "additionalProperties": False,
+        },
+        offered=_firecrawl_ready,
+    ),
+    Card(
+        name="execute",
+        summary="Step 4: run a plan the user approved, within its budget, resumably",
+        description=(
+            "Runs a plan from `plan`, only after the user has approved it: pass its plan_id and approve=true. It "
+            "spends at most the approved amount (the plan's budget, or a lower max_cost_usd), preflight included.\n"
+            "A pull runs its lanes in order (base layer first, then top-ups), stops a cell at its first short page "
+            "or once its pages mostly repeat, stops calling once the deduped list reaches the requested count, never "
+            "lets the Firecrawl balance go below zero, and dedupes across lanes on name+phone and name+address. "
+            "Calling execute again on the same plan resumes it without paying for finished pages twice.\n"
+            "Returns counts, what each lane did, and a sample; the rows are read with job action=results or "
+            "action=export (csv/json/jsonl). Records are deleted after the retention period (30 days).\n"
+            "drop_lanes leaves out lanes the user struck from the plan."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "plan_id": {"type": "string"},
+                "approve": {"type": "boolean", "description": "Must be true: the user said yes to this plan"},
+                "max_cost_usd": {"type": "number", "minimum": 0, "maximum": 500,
+                                 "description": "Approve less than the plan's budget (never more)"},
+                "drop_lanes": {"type": "array", "items": {"type": "string"}, "description": "Lanes (provider/capability) to leave out"},
+                "wait_seconds": WAIT,
+                "request_id": REQUEST_ID,
+            },
+            "required": ["plan_id", "approve"],
+            "additionalProperties": False,
+        },
+        offered=_firecrawl_ready,
+    ),
 ]
 
-HANDLERS: dict[str, Callable[[dict, Box], Awaitable[dict]]] = {"status": status, "scrape": scrape, "job": job}
+HANDLERS: dict[str, Callable[[dict, Box], Awaitable[dict]]] = {
+    "status": status, "scrape": scrape, "job": job, "sources": sources, "plan": plan, "execute": execute}
 
 
 def card(name: str) -> Card | None:

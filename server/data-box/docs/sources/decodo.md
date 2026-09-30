@@ -2,7 +2,7 @@
 
 Decodo sells two separate products, each with its own credentials.
 
-## Residential proxy: `scrape` rung 0b (M3)
+## Residential proxy: `scrape` rung 2, first half (D3)
 
 **Status (2026-09-23).** The proxy user and password are verified:
 - the sticky endpoint (port 10001) returned a residential exit in Brazil;
@@ -21,14 +21,14 @@ Both are set on the droplet.
 - **Metering.** Bytes × the plan's $/GB. The worst case is reserved before the request and settled after.
 - **Guard.** DNS resolves at the proxy, so data-box resolves the target itself first and refuses non-public addresses before sending CONNECT. Every redirect hop is re-checked.
 
-## Web Scraping API: `scrape` rung 3 (M3)
+## Web Scraping API: `scrape` rung 2, second half (D3)
 
 **Status (2026-09-23).** The token has not been supplied. `status` will list rung 3 as unconfigured until `DECODO_SCRAPER_API_TOKEN` is set.
 
 - **Endpoint.** `POST https://scraper-api.decodo.com/v2/scrape`.
 - **Auth.** `Authorization: Basic <token>`. This token comes from the Web Scraping API section of the dashboard; it is not the proxy login.
 - **JavaScript.** Rendering is on for rung 3, because the rungs before it failed on a plain fetch.
-- **Templates.** Decodo's platform templates become catalog rows in M4. If Decodo publishes no template list through its API, data-box builds one from Decodo's docs using its own `scrape`.
+- **Templates.** Decodo's platform templates join the survey as tier 2 data lanes in D4. If Decodo publishes no template list through its API, data-box builds one from Decodo's docs using its own `scrape`.
 
 ## Primary docs
 

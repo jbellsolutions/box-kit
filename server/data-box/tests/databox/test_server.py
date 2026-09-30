@@ -56,7 +56,8 @@ class Doors(unittest.TestCase):
     def test_mcp_lists_the_tools_this_box_offers(self):
         response = self.mcp("tools/list")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([t["name"] for t in response.json()["result"]["tools"]], ["status", "scrape", "job"])
+        # No Firecrawl key: plan and execute are not listed (a listed tool works); the free survey is.
+        self.assertEqual([t["name"] for t in response.json()["result"]["tools"]], ["status", "scrape", "job", "sources"])
 
     def test_bare_mcp_path_is_not_redirected(self):
         response = self.client.post("/mcp", json=rpc("tools/list"), headers={**MCP, **AUTH}, follow_redirects=False)
@@ -113,11 +114,57 @@ class Doors(unittest.TestCase):
         names = {c["name"] for c in body["components"]}
         for provider in config.PROVIDERS:
             self.assertIn(provider, names)
-        self.assertEqual(body["tools_working_now"], ["status", "scrape", "job"])
+        self.assertEqual(body["tools_working_now"], ["status", "scrape", "job", "sources"])
+        self.assertEqual(body["plans_awaiting_approval"], [])
         self.assertEqual(body["recent_calls"][0]["tool"], "scrape")
         firecrawl = next(c for c in body["components"] if c["name"] == "firecrawl")
         self.assertFalse(firecrawl["configured"])
         self.assertIn("FIRECRAWL_API_KEY", firecrawl["detail"])
+
+
+class PlanDoors(unittest.TestCase):
+    """plan and execute through HTTP and MCP, with a fake Firecrawl behind them."""
+
+    def setUp(self):
+        from .fake_firecrawl import FakeFirecrawl
+        env = mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "fc-test"})
+        env.start()
+        self.addCleanup(env.stop)
+        self.fake = FakeFirecrawl()
+        app = server.build_app(Path(tempfile.mkdtemp()))
+        app.state.box.firecrawl = self.fake.client
+        self.client = TestClient(app)
+        self.client.__enter__()
+        self.addCleanup(self.client.__exit__, None, None, None)
+
+    def post(self, tool, body):
+        return self.client.post(f"/api/v1/{tool}", json=body, headers=AUTH)
+
+    def test_plan_then_execute_over_http_and_mcp(self):
+        listed = self.client.post("/mcp", json=rpc("tools/list"), headers={**MCP, **AUTH}).json()["result"]["tools"]
+        self.assertEqual([t["name"] for t in listed], ["status", "scrape", "job", "sources", "plan", "execute"])
+        made = self.post("plan", {"request": "roofing contractors", "geo": ["Austin, TX"], "count": 20,
+                                  "fields": ["phone"]}).json()
+        self.assertEqual(made["status"], "succeeded", made)
+        plan_id = made["plan_id"]
+        self.assertEqual(made["plan"]["status"], "awaiting_approval")
+        refused = self.post("execute", {"plan_id": plan_id, "approve": False})
+        self.assertEqual(refused.status_code, 422)
+        self.assertIn("approve=true", refused.json()["error"])
+        call = self.client.post("/mcp", json=rpc("tools/call", {"name": "execute", "arguments": {
+            "plan_id": plan_id, "approve": True, "wait_seconds": 30}}), headers={**MCP, **AUTH})
+        result = json.loads(call.json()["result"]["content"][0]["text"])
+        self.assertEqual(result["status"], "succeeded", result)
+        self.assertGreaterEqual(result["unique_records"], 20)
+        status = self.client.get("/api/v1/status", headers=AUTH).json()
+        firecrawl = next(c for c in status["components"] if c["name"] == "firecrawl")
+        self.assertEqual(firecrawl["balance_credits"], self.fake.balance)
+        self.assertEqual(self.post("plan", {"action": "get", "plan_id": plan_id}).json()["status"], "done")
+
+    def test_an_unknown_plan_is_a_422(self):
+        response = self.post("execute", {"plan_id": "plan_nope", "approve": True})
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("no plan", response.json()["error"])
 
 
 class NoTokenNoServer(unittest.TestCase):

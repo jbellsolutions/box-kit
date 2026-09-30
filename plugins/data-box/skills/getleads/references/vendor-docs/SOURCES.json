@@ -1,0 +1,34 @@
+{
+ "tool": "getleads",
+ "home": "https://www.getleads.io",
+ "terms_note": null,
+ "sources": [
+  {
+   "url": "https://www.getleads.io/llms.txt",
+   "path": "llms.txt",
+   "why": "the site index for agents"
+  },
+  {
+   "url": "https://www.getleads.io/ask.txt",
+   "path": "ask.txt",
+   "why": "the whole FAQ as one prompt: data, pricing, limits, reselling"
+  },
+  {
+   "url": "https://www.getleads.io/docs/",
+   "path": "api-docs.md",
+   "embedded": "# API Docs",
+   "why": "the REST API and MCP tools: auth, rate limits, billing, every route (shipped inside the site's script)"
+  },
+  {
+   "url": "https://www.getleads.io/fair-usage/",
+   "path": "fair-usage.md",
+   "embedded": "# Fair Usage Policy",
+   "why": "the flat plan's export caps and daily and monthly windows (shipped inside the site's script)"
+  },
+  {
+   "url": "https://www.getleads.io/thinking-mode/",
+   "path": "thinking-mode.md",
+   "why": "how to use the MCP: every tool, filter semantics, workflows"
+  }
+ ]
+}
