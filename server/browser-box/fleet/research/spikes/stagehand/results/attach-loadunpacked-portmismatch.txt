@@ -1,0 +1,14 @@
+{
+  "steelBase": "http://127.0.0.1:3301",
+  "cdpUrl": "ws://127.0.0.1:3301/",
+  "withSessionExt": false,
+  "steps": [
+    {
+      "name": "localBrowser.connect",
+      "ok": false,
+      "ms": 60018,
+      "error": "Stagehand initialization timed out after 60000ms"
+    }
+  ],
+  "fatal": "Stagehand initialization timed out after 60000ms"
+}

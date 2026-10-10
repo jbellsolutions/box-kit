@@ -1,0 +1,35 @@
+{
+ "label": "quotes_extract",
+ "name": "Metadata",
+ "system_prompt": "You are an AI assistant tasked with evaluating the progress and completion status of an extraction task.\nAnalyze the extraction response and determine if the task is completed or if more information is needed.\nStrictly abide by the following criteria:\n1. Once the instruction has been satisfied by the current extraction response, ALWAYS set completion status to true and stop processing, regardless of remaining chunks.\n2. Only set completion status to false if BOTH of these conditions are true:\n   - The instruction has not been satisfied yet\n   - There are still chunks left to process (chunksTotal > chunksSeen)",
+ "messages": [
+  {
+   "role": "user",
+   "content": {
+    "type": "text",
+    "text": "Instruction: extract every quote's text and author on this page\nExtracted content: {\n  \"quotes\": [\n    {\n      \"text\": \"\u201cThe world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.\u201d\",\n      \"author\": \"Albert Einstein\"\n    },\n    {\n      \"text\": \"\u201cIt is our choices, Harry, that show what we truly are, far more than our abilities.\u201d\",\n      \"author\": \"J.K. Rowling\"\n    },\n    {\n      \"text\": \"\u201cThere are only two ways to live your life. One is as though nothing is a miracle. The other is as though everything is a miracle.\u201d\",\n      \"author\": \"Albert Einstein\"\n    },\n    {\n      \"text\": \"\u201cThe person, be it gentleman or lady, who has not pleasure in a good novel, must be intolerably stupid.\u201d\",\n      \"author\": \"Jane Austen\"\n    },\n    {\n      \"text\": \"\u201cImperfection is beauty, madness is genius and it's better to be absolutely ridiculous than absolutely boring.\u201d\",\n      \"author\": \"Marilyn Monroe\"\n    },\n    {\n      \"text\": \"\u201cTry not to become a man of success. Rather become a man of value.\u201d\",\n      \"author\": \"Albert Einstein\"\n    },\n    {\n      \"text\": \"\u201cIt is better to be hated for what you are than to be loved for what you are not.\u201d\",\n      \"author\": \"Andr\u00e9 Gide\"\n    },\n    {\n      \"text\": \"\u201cI have not failed. I've just found 10,000 ways that won't work.\u201d\",\n      \"author\": \"Thomas A. Edison\"\n    },\n    {\n      \"text\": \"\u201cA woman is like a tea bag; you never know how strong it is until it's in hot water.\u201d\",\n      \"author\": \"Eleanor Roosevelt\"\n    },\n    {\n      \"text\": \"\u201cA day without sunshine is like, you know, night.\u201d\",\n      \"author\": \"Steve Martin\"\n    }\n  ]\n}",
+    "annotations": null
+   }
+  }
+ ],
+ "temperature": null,
+ "schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+   "progress": {
+    "type": "string",
+    "description": "progress of what has been extracted so far, as concise as possible"
+   },
+   "completed": {
+    "type": "boolean",
+    "description": "true if the goal is now accomplished. Use this conservatively, only when sure that the goal has been completed."
+   }
+  },
+  "required": [
+   "progress",
+   "completed"
+  ],
+  "additionalProperties": false
+ }
+}

@@ -1,0 +1,110 @@
+{
+ "topic": "Stagehand deep dive (rerun): v4.2.0 vs v3.7.3 on self-hosted Steel, decider path, caching, model layer",
+ "dossier": "fleet/research/dossiers/stagehand.md",
+ "claims": [
+  {
+   "id": "SH-1",
+   "claim": "Stagehand v4 caching is disabled on any non-Browserbase browser; on Steel every string act/observe/extract runs inference (cache.status DISABLED).",
+   "provenance": "hands-on + source-code",
+   "evidence": "spike-v4.mjs: two act('click the Next link',{cache:true}) runs gave 2 LLM calls and metadata.cache.status 'DISABLED' (results/result-v4-z_ai_glm_5_3_flash.json notes.cacheRun1/2). Source: packages/extension/services/cacheService.ts:62-73 needs apiKey && browser.sessionId; localBrowser.connect sets workerInitMetadata {} (sdk-ts/src/browser/factories.ts:136).",
+   "why_it_matters": "Removes the Gemini plan's 'cached replays cost $0' assumption on Steel. The fleet must build its own replay cache or pay per call."
+  },
+  {
+   "id": "SH-2",
+   "claim": "act(Action) and the decider path (page.snapshot -> pick -> act({selector:'xpath='+xpathMap[id],method,arguments})) make zero LLM calls in v4 TS, v4 Python and v3, as long as selfHeal is false.",
+   "provenance": "hands-on + source-code",
+   "evidence": "Independent request counter in openrouter-llm.mjs, not metrics(): v4 decider 0 calls 0.28 s, act(observe.data[0]) 0 calls 0.46 s (result-v4-z_ai_glm_5_3_flash.json); Python spike_v4_python.py 0 calls; v3 0 calls (result-v3.json). With selfHeal:true a broken Action made 1 call (result-v4-features.json). Source: actService.ts:104-113 (non-string goes to takeDeterministicAction), :375-397 (self-heal), :77 (default false); v3.js:729 (selfHeal ?? true).",
+   "why_it_matters": "This is the System 1 seam: decision models can drive Stagehand execution with no generative model, which makes the '90%+ System 1' target structurally possible."
+  },
+  {
+   "id": "SH-3",
+   "claim": "v4 attaches to self-hosted Steel without Browserbase only with three undocumented steps: (a) extension inside the Steel container, (b) Steel session created with extensions:['stagehand'], (c) the SDK's cdpUrl reachable from inside the browser. Stock Steel fails with 'File path cannot be resolved.'",
+   "provenance": "hands-on + source-code",
+   "evidence": "results/attach-stock.txt ('File path cannot be resolved.'), attach-loadunpacked-portmismatch.txt (60 s init timeout; Steel's --disable-extensions-except), attach-sessionext-portmismatch.txt ('CDP websocket failed to open'), attach-ok.txt (works with PORT=3301 inside and outside). Source: sdk-ts/src/cdpClient.ts:638-668,791-821; extension/runtime.ts:396-399 (extension dials browserCdpUrl); steel cdp.service.ts:810-870.",
+   "why_it_matters": "Decides whether Stagehand v4 can be the main engine on Steel at all, and what the fleet's Steel image and session-create call must include."
+  },
+  {
+   "id": "SH-4",
+   "claim": "v4 ModelConfig has no baseURL; OpenRouter/GLM is reachable only through the client callback (model:{generate}). In provider-key mode the extension makes the LLM HTTP call from inside the browser.",
+   "provenance": "source-code + hands-on",
+   "evidence": "packages/protocol/schemas.ts:676-694 (strictObject {apiKey, headers, modelName}), :15-46 (5 providers). extension/services/llmService.ts:21-35 (callback \u2192 generateWithClientLlm; else AI SDK in the extension). sdk-ts/src/stagehand.ts:200-205 registers llm.generate in the SDK. Hands-on: all 26 GLM calls went through the callback shim.",
+   "why_it_matters": "Fixes the integration shape for GLM 5.3 Flash and keeps provider keys and LLM egress out of client browser profiles and their sticky proxy IPs."
+  },
+  {
+   "id": "SH-5",
+   "claim": "Stagehand variables keep secret values out of the act prompt, but once typed the value shows up in the accessibility tree and is sent to the model by later inference on that page. Password inputs are masked.",
+   "provenance": "hands-on",
+   "evidence": "result-v4-features.json: canaryInPromptsDuringAct=false, canaryInSnapshotAfterTyping=true, canaryInPromptsAfterFollowupObserve=true. result-v4-followup.json: passwordValueInSnapshot=false, textValueInSnapshot=true. Source: prompt.ts:211-223, actService.ts:506-521.",
+   "why_it_matters": "Agents must never type credentials, and sensitive client text must not be followed by inference on the same page."
+  },
+  {
+   "id": "SH-6",
+   "claim": "v4 enforces one Stagehand instance per browser ('A Stagehand instance is already initialized'); v3 has no guard and lets two instances attach concurrently.",
+   "provenance": "hands-on",
+   "evidence": "results/result-v4-overhead.json secondInstance rejected; result-v3-overhead.json secondInstance attached. Source: extension/runtime.ts:392.",
+   "why_it_matters": "Sets the concurrency unit (profile = browser = one Stagehand) and shows v3 needs an external lane lock."
+  },
+  {
+   "id": "SH-7",
+   "claim": "v4 file uploads via setInputFiles work over remote CDP with no shared filesystem, capped at 50 MiB per file.",
+   "provenance": "hands-on + source-code",
+   "evidence": "result-v4-features.json: hello.txt attached on the-internet /upload via Steel. sdk-ts/src/fileUpload.ts:3 MAX_INPUT_FILE_BYTES = 50 MiB; extension/understudy/locator.ts:126.",
+   "why_it_matters": "Video posting above 50 MiB needs a fleet-built path (Steel files API + raw CDP DOM.setFileInputFiles)."
+  },
+  {
+   "id": "SH-8",
+   "claim": "v3.7.3 cacheDir replays act and agent with zero model calls, but its URL+instruction key replays a click onto whatever element now sits at the cached xpath, reporting success:true.",
+   "provenance": "hands-on + source-code",
+   "evidence": "result-v3.json: cache run 2 0 calls 0.50 s; agent run 2 0 calls 1.2 s. result-v3-stale-B-wrongclick.json: cached li[1]/a[1] now the injected 'Love' link, so success:true, 0 calls, urlAfter /tag/love/ (expected /page/2/). Source: dist/esm/lib/v3/cache/ActCache.js:21-38,129-136 (key = sha256 of instruction, URL, variableKeys).",
+   "why_it_matters": "Any replay cache, ours or v3's, must verify element identity before replaying, or the fleet will silently act on the wrong element on social sites."
+  },
+  {
+   "id": "SH-9",
+   "claim": "On fresh lockfiles, npm audit --omit=dev reports 5 advisories (2 high: undici <=6.28.0, @fastify/busboy) in stagehand@3.7.3's non-optional tree (19 with optional providers), via ai@5.0.273 -> @ai-sdk/provider-utils@3.0.41 -> undici@5.29.0; npm audit fix without --force does not clear them. stagehand@4.2.0 reports 0.",
+   "provenance": "hands-on",
+   "evidence": "RESULTS.md Finding 9: npm i --package-lock-only --legacy-peer-deps @browserbasehq/stagehand@{3.7.3,4.2.0} zod@^4, then npm audit --omit=dev [--omit=optional]. ai@5.0.273 and provider-utils@3.0.41 are the newest 5.x/3.x (npm view).",
+   "why_it_matters": "A main input to the v3-vs-v4 pin decision."
+  },
+  {
+   "id": "SH-10",
+   "claim": "Steel's official docs and cookbook for Stagehand only cover v3 (env:'LOCAL' + cdpUrl; Python stagehand>=3.19,<4 server='local'); there is no v4 Steel guide.",
+   "provenance": "official-docs",
+   "evidence": "steel-gh-docs@322ad57 content/docs/integrations/stagehand.mdx:20-50; steel-gh-steel-cookbook@40f1326 examples/stagehand-ts/package.json (^3.2.1), examples/stagehand-py/pyproject.toml:9.",
+   "why_it_matters": "v4-on-Steel is unsupported by both vendors; the fleet owns that integration and its regression tests."
+  }
+ ],
+ "gaps": [
+  "Agent loop: v4 has no agent(); the Hermes-driven loop or tool-calling, step budgets and stop conditions are fleet-built (Browser-Use stays the open-ended backup).",
+  "Replay cache: v4 has none off Browserbase, and v3's URL+instruction cache is unsafe. Build a fleet cache keyed on site/step/URL pattern + element fingerprint, verified before replay, falling back to decider then LLM.",
+  "System 1 decider integration: candidate extraction from page.snapshot().formattedTree, decider call, method/argument policy, post-action verification.",
+  "OpenRouter LLM adapter for the generate callback: max_tokens cap, provider.require_parameters, reasoning effort, retry-on-null on another provider, dollar-cost accounting.",
+  "Steel image and session plumbing for v4: bake the extension (pinned to the SDK version), create sessions with extensions:['stagehand'], make the CDP URL reachable from the browser, set PROXY_INTERNAL_BYPASS for proxied profiles, and smoke-test on upgrades.",
+  "Large media upload path (>50 MiB): Steel files API + raw CDP DOM.setFileInputFiles.",
+  "Feed/infinite-scroll loops, dedupe and rate limiting (Stagehand only gives nextChunk/mouse.wheel primitives).",
+  "Observability: per-profile traces, dollar cost, failure screenshots and run history (v4 has no history).",
+  "Lane lock / exclusivity for v3 or any non-Stagehand CDP clients on the same browser.",
+  "Anti-detection evaluation of the v4 extension (content script on all frames, debugger permission)."
+ ],
+ "risks": [
+  "The v4 extension's effect on bot detection is unknown (content script at document_start in every frame, debugger permission); not measured.",
+  "The v4-on-Steel attach depends on undocumented behaviour in both projects (Extensions CDP domain, Steel's --disable-extensions-except/--load-extension, the extension dialing the CDP URL back), so any upgrade can break it.",
+  "Proxied profiles: the extension's CDP WebSocket (and any provider-key LLM calls or OTel traces) would go through the residential proxy unless bypassed. Untested.",
+  "GLM 5.3 Flash false nulls on act (3/12 on loaded pages); provider dependence unproven.",
+  "v4 moves fast (4.0\u21924.2 in two months) and the SDK and extension versions must match.",
+  "v3 is unmaintained in practice (no release since 2026-08-28, #2910 unreleased) and carries high-severity transitive advisories.",
+  "Real social composers (Lexical/Draft.js), cross-origin iframes and shadow-DOM widgets on X/Facebook were not tested (forbidden in spikes).",
+  "If Browserbase is used as backup infra, its cache receives full AX trees and variable values.",
+  "v4 browser.close() on a connected Steel browser kills the Chromium; skills must call stagehand.close() only."
+ ],
+ "recommendations": [
+  "Pin @browserbasehq/stagehand 4.2.0 (TS) / stagehand 4.2.0 (Python) and ship the matching extension (Stagehand Runtime 1.1.0) in the fleet's Steel image; one baked extension served both SDKs.",
+  "Create every Steel session with extensions:['stagehand'], and have the fleet service connect with a CDP URL the browser can also reach (same host:port inside and outside, or an internal hostname on PROXY_INTERNAL_BYPASS).",
+  "Route every model call through model:{generate} to OpenRouter (GLM 5.3 Flash, reasoning effort low, max_tokens ~2048, json_schema strict, provider.require_parameters, retry once on null with a different provider). Never put provider keys in ModelConfig on fleet browsers.",
+  "Make the System 1 path the default: page.snapshot() \u2192 decider \u2192 act(Action) with selfHeal:false. Use observe() once to plan multi-step flows, then act(each) at zero calls. Reserve string act() and extract() for cases the decider can't resolve.",
+  "Build the fleet replay cache outside Stagehand with an element-fingerprint check before replay; don't adopt v3's cacheDir semantics.",
+  "Keep v3.7.3 only as a reference for agent tools and cache design, or as a short bridge pinned exactly with explicit selfHeal and an external lane lock.",
+  "Hand the v4 extension detectability question to the anti-detect workstream before rollout to client accounts.",
+  "Add a Stagehand-on-Steel smoke test (attach, snapshot, act(Action), one observe) to the fleet's upgrade gate."
+ ],
+ "spend_usd": 0.0067
+}

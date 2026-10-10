@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-10T07:39:20.205Z",
+  "probes": {
+    "A: cached xpath resolves to nothing": {
+      "ms": 16272,
+      "llmCalls": 1,
+      "success": true,
+      "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[2]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+      "actions": [
+        {
+          "selector": "xpath=/html[1]/body[1]/div[2]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+          "description": "Next link (pagination link to go to the next page of quotes)",
+          "method": "click",
+          "arguments": [
+            "left"
+          ]
+        }
+      ],
+      "urlAfter": "https://quotes.toscrape.com/page/2/"
+    },
+    "B: cached xpath resolves to a different link": {
+      "ms": 17893,
+      "llmCalls": 1,
+      "success": true,
+      "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[2]/a[1]",
+      "actions": [
+        {
+          "selector": "xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[2]/a[1]",
+          "description": "Next link (pagination link to go to the next page of quotes)",
+          "method": "click",
+          "arguments": [
+            "left"
+          ]
+        }
+      ],
+      "urlAfter": "https://quotes.toscrape.com/page/2/"
+    }
+  },
+  "llm": {
+    "calls": 2,
+    "costUsd": 0.0009152699999999999
+  }
+}

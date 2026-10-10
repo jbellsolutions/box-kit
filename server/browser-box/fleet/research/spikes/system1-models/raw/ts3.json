@@ -1,0 +1,116 @@
+{
+  "url": "https://api.typesafe.ai/v1/systemone",
+  "status": 200,
+  "wall_ms": 138.6,
+  "http_version": "HTTP/1.1",
+  "response_headers": {
+    "server": "cloudflare",
+    "cf-ray": "a48255c00e3e5c5f-XXX"
+  },
+  "request_body": {
+    "model": "jev-1.13.0",
+    "state": {
+      "command": "Find more quotes beyond the ones shown on this page",
+      "page": {
+        "url": "https://quotes.toscrape.com/",
+        "title": "Quotes to Scrape",
+        "text_excerpt": "Quotes to Scrape. Login. “The world as we have created it is a process of our thinking...” by Albert Einstein (about) Tags: change deep-thoughts thinking world. ... Next →  Top Ten tags: love inspirational life humor books reading friendship friends truth simile. Quotes by: GoodReads.com Made with love by Zyte"
+      }
+    },
+    "questions": {
+      "target": {
+        "type": "choice",
+        "instructions": {
+          "question": "Which element on the current page should be clicked next to advance the goal? Choose 'none' if no element listed here advances it.",
+          "command": "Find more quotes beyond the ones shown on this page"
+        },
+        "criteria": {
+          "none": "No element listed here advances the goal",
+          "e10": "link \"Zyte\" -> https://www.zyte.com",
+          "e9": "link \"GoodReads.com\" -> https://www.goodreads.com/quotes",
+          "e8": "link \"love\" -> /tag/love/",
+          "e7": "link \"Next ->\" -> /page/2/",
+          "e6": "link \"(about)\" -> /author/Jane-Austen",
+          "e5": "link \"inspirational\" -> /tag/inspirational/page/1/",
+          "e4": "link \"change\" -> /tag/change/page/1/",
+          "e3": "link \"(about)\" -> /author/Albert-Einstein",
+          "e2": "link \"Login\" -> /login",
+          "e1": "link \"Quotes to Scrape\" -> /"
+        }
+      },
+      "login_wall": {
+        "type": "noul",
+        "instructions": "Is a sign-in or login form the main thing on this page, so the user must log in before they can continue?",
+        "criteria": {
+          "true": "The page mainly asks for a username/email and password, or says to sign in to continue",
+          "false": "The page shows its normal content; any sign-in link is just one link among many"
+        }
+      },
+      "blocker": {
+        "type": "choice",
+        "instructions": {
+          "question": "What, if anything, on this page is in the way of the goal?",
+          "goal": "Find more quotes beyond the ones shown on this page"
+        },
+        "criteria": {
+          "no_change": "The page did not change at all",
+          "permission_prompt": "A request for a permission such as location, notifications or camera",
+          "popup": "A newsletter, app-install or other overlay",
+          "no_results": "A search or list that says it found nothing",
+          "error_page": "An error, not found, or cannot-reach page",
+          "captcha": "A captcha or robot check",
+          "login_wall": "A sign-in or account prompt",
+          "consent_dialog": "A cookie or privacy consent dialog",
+          "none": "Nothing is in the way"
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "target": {
+        "type": "choice",
+        "choice": "e7",
+        "confidence": 1.0,
+        "probabilities": {
+          "none": 0.0,
+          "e10": 0.0,
+          "e9": 0.0,
+          "e8": 0.0,
+          "e7": 1.0,
+          "e6": 0.0,
+          "e5": 0.0,
+          "e4": 0.0,
+          "e3": 0.0,
+          "e2": 0.0,
+          "e1": 0.0
+        }
+      },
+      "login_wall": {
+        "type": "noul",
+        "noul": 0.04
+      },
+      "blocker": {
+        "type": "choice",
+        "choice": "none",
+        "confidence": 0.87,
+        "probabilities": {
+          "no_change": 0.0,
+          "permission_prompt": 0.0,
+          "popup": 0.0,
+          "no_results": 0.0,
+          "error_page": 0.0,
+          "captcha": 0.0,
+          "login_wall": 0.12,
+          "consent_dialog": 0.0,
+          "none": 0.88
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1032,
+      "output_tokens": 208
+    }
+  }
+}

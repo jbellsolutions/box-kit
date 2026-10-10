@@ -1,0 +1,40 @@
+{
+ "url": "https://fixture.invalid/",
+ "status": 200,
+ "ms": 0,
+ "bytes": 1044,
+ "title": "Acme Plumbing (fixture)",
+ "visible_text_chars": 371,
+ "scripts": 1,
+ "jsonld_entities": [
+  {
+   "@type": "LocalBusiness",
+   "name": "Acme Plumbing",
+   "email": "hello@acme.invalid",
+   "telephone": "+1-555-0100",
+   "url": "https://acme.invalid",
+   "sameAs": [
+    "https://www.facebook.com/acmeplumbing",
+    "https://www.instagram.com/acmeplumbing"
+   ],
+   "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Springfield"
+   }
+  }
+ ],
+ "mailto": [
+  "hello@acme.invalid"
+ ],
+ "tel": [
+  "+15550100"
+ ],
+ "social_profiles": [
+  "https://www.linkedin.com/company/acme-plumbing"
+ ],
+ "contact_pages": [
+  "https://fixture.invalid/about-us",
+  "https://fixture.invalid/contact"
+ ],
+ "needs_browser": false
+}

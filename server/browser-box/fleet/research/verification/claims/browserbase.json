@@ -1,0 +1,113 @@
+{
+ "topic": "Browserbase as the paid backup browser infra for the System 1 fleet: product surface, pricing, AUP, compatibility, when it is needed instead of self-hosted Steel, and the cost model",
+ "dossier": "fleet/research/dossiers/browserbase.md",
+ "claims": [
+  {
+   "id": "BB-1",
+   "claim": "Browserbase has no documented or self-serve sticky, static or dedicated IP. Built-in proxies rotate per session and only geolocation can be pinned, best effort. The only way to pin an IP is a BYO external HTTP/HTTPS proxy (no SOCKS5) on Developer+.",
+   "provenance": "source-code + official-docs",
+   "evidence": "bb-sdk-node@adef824 src/resources/sessions/sessions.ts: the proxy types are BrowserbaseProxyConfig{type, domainPattern, geolocation{country, city, state}}, ExternalProxyConfig{server, type, domainPattern, password, username} and NoneProxyConfig. ProxySettings has only caCertificates. pages/platform/identity/proxies.md: 'Geolocation routing is best effort' (the overview's 'consistent IP addresses across sessions' has no parameter behind it). ip-allowlisting.md: 'Socks5 proxies are not supported'. A grep for sticky|static ip|dedicated ip over the corpus and SDK source returns 0 hits.",
+   "why_it_matters": "The brief requires one sticky IP per profile. On Browserbase the fleet must buy and manage a BYO proxy for every profile, so Browserbase offers no proxy simplification over Steel."
+  },
+  {
+   "id": "BB-2",
+   "claim": "There is no per-profile fingerprint pinning. Non-Verified sessions are always Linux and reject `os`. Verified (Windows/Mac, real fingerprints, fixed viewport) is Scale-plan only and in beta.",
+   "provenance": "official-docs + source-code",
+   "evidence": "pages/platform/identity/verified-customization.md: '`os` only applies to Verified sessions. Non-Verified sessions always use `linux`, and passing `os` on a non-Verified session returns an error.' pages/platform/identity/overview.md: 'Browserbase offers Verified on the Scale plan.' sessions.ts BrowserSettings has no fingerprint field. The fingerprint field appears only in stagehand 4.2.0 types and in the stale Python-repo YAML.",
+   "why_it_matters": "'Same fingerprint every time' cannot be guaranteed by contract. A self-serve plan gives every social account a Linux UA. Without Scale, Browserbase cannot satisfy the brief's identity-pinning requirement."
+  },
+  {
+   "id": "BB-3",
+   "claim": "Contexts persist the Chromium user-data dir (encrypted, indefinitely), but there is no API list, no export, and API upload is deprecated. Login state is therefore locked into Browserbase, and suspension invalidates all Contexts.",
+   "provenance": "source-code + official-docs",
+   "evidence": "bb-sdk-node@adef824 src/resources/contexts.ts has create, retrieve, update (@deprecated) and delete only. uploadUrl is documented as: 'Deprecated. Browserbase no longer supports context uploads via the API; this field always contains a non-functional sentinel URL'. openapi.v1.yaml /v1/contexts has POST only. contexts.md: 'Account suspension or deletion will invalidate all Contexts'. The dashboard lists Contexts (changelog 2026-08-19).",
+   "why_it_matters": "Infra must be chosen per profile at creation, and the fleet registry must be the source of truth for profile\u2192contextId. No migration or backup path exists, so Browserbase should never be the sole home for a client login."
+  },
+  {
+   "id": "BB-4",
+   "claim": "Stagehand v4's act/observe/extract cache is server-side and works only on Browserbase browsers. v4 removed the local cacheDir, so Stagehand on self-hosted Steel runs inference on every call.",
+   "provenance": "source-code + official-docs",
+   "evidence": "stagehand@1fc8849 packages/extension/services/cacheService.ts buildCacheContext: 'if (!initParams.apiKey || !sessionId) return undefined'. The server gates every lookup on a per-project LaunchDarkly flag. packages/docs/v4/migrations/v3.mdx:509 says the local enableCaching/cacheDir options 'are gone', and :601 says '`enableCaching`, `cacheDir` | No equivalent; caching is server-side'. caching.mdx: 'With a local browser ... the cache option has no effect'.",
+   "why_it_matters": "The brief's 'Stagehand = deterministic, scoped, cached' premise holds only on Browserbase. On Steel the fleet must build its own replay cache or pin Stagehand v3; otherwise the cost and latency assumptions break."
+  },
+  {
+   "id": "BB-5",
+   "claim": "Hermes' built-in Browserbase provider does not support Contexts. It defaults keepAlive and proxies to true, uses the deprecated advancedStealth, and passes BROWSERBASE_SESSION_TIMEOUT through as seconds, contradicting Browserbase's Hermes docs (milliseconds).",
+   "provenance": "source-code",
+   "evidence": "NousResearch/hermes-agent@5ba559c plugins/browser/browserbase/provider.py create_session(): session_config contains only projectId, keepAlive, timeout, proxies and browserSettings.advancedStealth; no context. The docstring says '(seconds, max 21600)'. corpus pages/integrations/hermes-agent/setup.md says 'Override session timeout in milliseconds BROWSERBASE_SESSION_TIMEOUT=600000'.",
+   "why_it_matters": "Hermes profiles cannot get persistent Browserbase identities through the stock provider. The fleet must ship its own session factory or plugin."
+  },
+  {
+   "id": "BB-6",
+   "claim": "The Browserbase ToS has no clause about social media, multi-account use or account creation on target sites. It does ban spam/solicitation and impersonation, and allows suspension for any or no reason. No public AUP was found.",
+   "provenance": "official-docs (ToS fetched 2026-10-09, last updated 2025-08-01)",
+   "evidence": "tos.md, Prohibited Uses: 'To transmit, or procure the sending of, any advertising or promotional material, including any \"junk mail,\" \"chain letter,\" \"spam,\" or any other similar solicitation.' and 'To impersonate or attempt to impersonate ... any other person or entity'. Elsewhere: 'Terminate or suspend your access to all or part of the Platform for any or no reason'. The multiple-accounts clause concerns Browserbase accounts. /legal/*, /aup and /acceptable-use-policy all return 307 to sign-in.",
+   "why_it_matters": "Outreach and DM workloads carry account-termination risk, and termination wipes every Context. This shapes whether Browserbase can host client social accounts at all."
+  },
+  {
+   "id": "BB-7",
+   "claim": "GET /v1/sessions is account-wide, with only q (userMetadata) and status filters. A bulk REQUEST_RELEASE cleanup kills other agents' sessions. Scoped per-agent keys do not exist.",
+   "provenance": "source-code + third-party",
+   "evidence": "bb-sdk-node@adef824 SessionListParams has { q?: string; status?: ... } and no project filter. github.com/browserbase/skills/issues/153 (2026-08-22) reports an 812-session account-wide list, an ignored projectId query, and a cross-agent outage. session-metadata.md documents the q syntax user_metadata['field']:'value' with a 512-char limit.",
+   "why_it_matters": "The fleet service must hold the key, tag every session, and release only sessions it owns. Hermes profiles must never get the raw key."
+  },
+  {
+   "id": "BB-8",
+   "claim": "Browserbase aligns the browser timezone to the proxy only for Browserbase proxies. With a BYO proxy, the fleet must override the timezone through CDP on every page before navigation.",
+   "provenance": "official-docs",
+   "evidence": "pages/platform/browser/techniques/timezones.md: 'When you use a Browserbase proxy, Browserbase automatically aligns the browser timezone with the proxy's geolocation.' Without one, use Emulation.setTimezoneOverride. 'The override applies per page. Set it before navigation for each new page or tab.'",
+   "why_it_matters": "Sticky BYO proxies, which Browserbase requires for a pinned IP, create a timezone/IP mismatch detection risk unless the fleet injects the override. Stagehand and Browser-Use open new tabs on their own."
+  },
+  {
+   "id": "BB-9",
+   "claim": "Stagehand 4.2.0 browser.close() releases a Browserbase session (launched or connected). On a local_browser.connect() browser (for example Steel over CDP) it sends CDP Browser.close and kills the remote Chromium, contradicting the v4 docs.",
+   "provenance": "source-code (stagehand python 4.2.0 installed package) + hands-on (offline mock)",
+   "evidence": "stagehand/browser.py _connect_browser.close(): 'if provider == \"local\" and origin == \"connected\": await connected_client.send_command(\"Browser.close\") else: await source.close()'. browserbase_session.py connect_session.close() calls release_session (REQUEST_RELEASE). Docs packages/docs/v4/configuration/browser.mdx:617: 'When you connect to an existing browser, close() ... leaves the browser running.' The offline spike captured POST /v1/sessions/{id} {status:REQUEST_RELEASE}.",
+   "why_it_matters": "Session lifecycle and Context persistence are triggered by close/release. On Steel, calling browser.close() would kill pooled browsers. This is cross-cutting for the Steel and Stagehand dossiers."
+  },
+  {
+   "id": "BB-10",
+   "claim": "At list prices on Startup with Browserbase proxies, the cost is about $18 per profile-month at 1 browser-hour/day and about $54 at 3 h/day. Proxy is 74-83% of the bill at 50 MB/h, and 1,000 profiles \u00d7 3 h/day exceeds Startup concurrency.",
+   "provenance": "official-docs (prices) + arithmetic",
+   "evidence": "plans.md: Startup $99, 500 h included, $0.10/h overage, 5 GB included, $10/GB overage, 100 concurrency. cost_model.py: 30\u00d71h = 900 h, 45 GB \u2192 $99 + 400\u00d70.10 + 40\u00d710 = $539; 1000\u00d73h = 90,000 h, 4,500 GB \u2192 $53,999; peak concurrency \u2248 250 with a 12 h window.",
+   "why_it_matters": "It sizes the Browserbase tier budget and shows that BYO proxy pricing, not browser time, drives cost."
+  }
+ ],
+ "gaps": [
+  "A per-profile sticky IP: Browserbase has none. The fleet must buy one BYO HTTP/HTTPS static or ISP proxy per profile, health-check it, and map it in the registry.",
+  "A timezone (and possibly locale) override via CDP on every new page and tab when using BYO proxies. Browserbase aligns these only for its own proxies.",
+  "A profile registry (profile_id \u2192 context_id, proxy, region, os/viewport, infra home). Browserbase has no Context list or export API. Name each Context after its profile_id so the dashboard can serve as a manual recovery index.",
+  "A one-session-per-Context lock, plus a wait for the Context to settle after close. The docs say \"wait a few seconds\", with no completion signal.",
+  "A login broker. It mints short-TTL Live View URLs for humans only, holds the session open during login (keepAlive or a held CDP connection), detects the logged-in state, then releases to persist. It also detects logged-out states and triggers re-login.",
+  "A session ownership layer. A fleet-held API key, userMetadata tags on every session, an orphan reaper using the q filter, and no bulk releases. Browserbase has no scoped per-agent keys.",
+  "A budget guard and usage accounting (projects.usage, proxyBytes), with keepAlive TTLs. Overage has no cap.",
+  "Recording and privacy defaults: recordSession:false and logSession:false for client accounts, and cache:false on credential-bearing Stagehand calls. Our own action log goes in Obsidian/Hermes memory instead of Browserbase recordings.",
+  "A Hermes plugin or skill for the Browserbase tier. The stock Hermes Browserbase provider has no Context support and uses a deprecated stealth flag.",
+  "A Stagehand extension pre-upload per Stagehand version, so each launch does not upload 442 KB. Also handling for the one-extension-per-session limit if the fleet ships its own extension.",
+  "For Steel-homed profiles: a replacement for the Stagehand v4 action cache (fleet replay cache, or pinning Stagehand v3 cacheDir), and Stagehand extension preinstall on Steel. Flagged for the Stagehand and Steel dossiers.",
+  "Model routing for Stagehand to GLM via OpenRouter. Stagehand.create (4.2.0) has no base_url parameter (model, model_api_key, model_headers, or an LLMGenerateCallback), so OpenRouter probably needs a provider-prefixed model string or a callback. This is for the Stagehand dossier. It does not affect the Browserbase cache, whose context needs only the Browserbase key and session ID."
+ ],
+ "risks": [
+  "Account termination or suspension ('for any or no reason') invalidates every Context at once, so every Browserbase-homed client login is lost. There is no export to recover from.",
+  "AUP/ToS exposure. Automated DMs and outreach sit near the solicitation/spam clause. Browserbase's product direction is declared agent identity, not stealth, so terms may tighten (no public AUP exists today).",
+  "Detection exposure on social platforms: a Linux-only fingerprint below Scale; rotating IPs unless BYO; a timezone mismatch if the CDP override is missed; Verified/Web Bot Auth may announce automation. None of this is measured.",
+  "Unknowns that need a paid key:\n- whether BYO proxy bytes are billed;\n- whether the fingerprint field is honoured;\n- whether a float timeout is accepted;\n- whether TIMED_OUT sessions persist Contexts;\n- the never-attached session lifetime;\n- fingerprint stability per Context;\n- the Context size ceiling;\n- which CAPTCHA vendors are covered;\n- the Stagehand cache hit rate and the project flag.",
+  "Shared-key blast radius: account-wide session listing lets one buggy agent's cleanup kill other agents' sessions (skills#153).",
+  "Orphaned keepAlive sessions bill until timeout with no overage cap. For example, 1,000 \u00d7 6 h orphans \u2248 $600 on Startup.",
+  "Privacy: recordings are on by default and kept up to 30 days, and Stagehand cache payloads include page accessibility trees and variables. ZDR/BYOS are Enterprise-only.",
+  "Maturity: open issues include a Stagehand v4 init timeout on Browserbase (stagehand#2782), keepAlive sessions completing in seconds (sdk-node#183), and orphaned MCP sessions (mcp-server-browserbase#187).",
+  "Docs drift: retention figures disagree across pages; the marketing UK region is not in source; Hermes docs and code disagree on timeout units; the Stagehand docs use .model_validate on a TypedDict. Every number must be re-checked at purchase."
+ ],
+ "recommendations": [
+  "Keep self-hosted Steel as the default home for social-media profiles. Make Browserbase an opt-in tier chosen per profile at creation and recorded in the registry. Never migrate a live Context between infras.",
+  "Home a profile on Browserbase only when one of these is measured:\n- a target site fails on Steel with that profile's pinned proxy and fingerprint;\n- burst or pilot capacity is needed before the Steel pool exists;\n- the Stagehand cache hit rate on that profile's workflows pays for the browser-hour premium.",
+  "For every Browserbase profile:\n- a BYO sticky HTTP/HTTPS proxy;\n- the CDP timezone override on every page;\n- recordSession:false and logSession:false;\n- a Context named after the profile_id with persist:true;\n- a one-session-per-Context lock;\n- userMetadata ownership tags;\n- a fleet-held API key.",
+  "Do not buy Scale or Verified for social media on vendor claims. If Verified is considered, A/B it first on public fingerprint and bot-test pages, then on a sacrificial non-client account, against Steel with the same proxy.",
+  "Run a paid-key validation spike on the Developer plan ($20) with public test pages only. Measure:\n- BYO proxy billing;\n- Context persist timing and TIMED_OUT behaviour;\n- the float timeout;\n- the fingerprint field;\n- Live View login with keepAlive;\n- the Stagehand cache HIT rate and latency.",
+  "Do not use Hermes' built-in Browserbase provider or Browserbase Agents/Functions for fleet profiles. Build a fleet session factory and a Hermes skill on the Browserbase SDK and Stagehand 4.x instead.",
+  "Pre-upload the Stagehand extension per version and pass extension_id. Pass cache=False on credential-bearing Stagehand calls and log metadata.cache.status.",
+  "Get written confirmation from Browserbase sales on the AUP before putting client outreach/DM workloads on it. Keep every Browserbase-homed client re-loginable through a documented human flow.",
+  "Feed these to the Stagehand and Steel dossiers:\n- the Stagehand v4 cache is Browserbase-only;\n- the v4 extension must be preinstalled on remote-CDP Steel;\n- browser.close() on a local-connected browser sends Browser.close."
+ ],
+ "spend_usd": 0
+}

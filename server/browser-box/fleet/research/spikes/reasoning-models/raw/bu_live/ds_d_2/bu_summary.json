@@ -1,0 +1,12 @@
+{
+ "model": "deepseek/deepseek-v4.1-flash",
+ "mode": "or-off",
+ "task": "Go to https://the-internet.herokuapp.com/dynamic_loading/2 , click the Start button, wait for the loading to finish, and report the exact text that appears.",
+ "wall_s": 50.2,
+ "steps": 5,
+ "final": "The exact text that appears after clicking Start on https://the-internet.herokuapp.com/dynamic_loading/2 and waiting for loading to finish is:\n\nHello World!",
+ "done": true,
+ "errors": [
+  "Navigation failed: Event handler browser_use.browser.watchdog_base.BrowserSession.on_NavigateToUrlEvent#0912(?\u25b6 NavigateToUrlEvent#f84c \ud83c\udfc3) timed out after 30.0s and interrupted any processing of 1 child events"
+ ]
+}

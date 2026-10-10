@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-10T07:34:03.440Z",
+  "probes": {
+    "contenteditable inside same-origin iframe (srcdoc)": {
+      "id": "0-46",
+      "xpath": "/html[1]/body[1]/iframe[1]/html[1]/body[1]/div[1]",
+      "success": true,
+      "message": "Action [fill] performed successfully on selector: xpath=/html[1]/body[1]/iframe[1]/html[1]/body[1]/div[1]",
+      "text": "iframe text ok",
+      "llmCalls": 0
+    },
+    "TinyMCE body target (the-internet /iframe)": {
+      "bodyXpath": "/html[1]/body[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[1]/iframe[1]/html[1]/body[1]",
+      "success": false,
+      "message": "Failed to perform act: Failed to fill element (unsupported-element)",
+      "text": "Your content goes here.",
+      "contentEditable": "false",
+      "llmCalls": 0
+    },
+    "password field value in snapshot after typing": {
+      "passwordValueInSnapshot": false,
+      "textValueInSnapshot": true,
+      "lines": [
+        "[1-36] textbox: Password",
+        "[1-37] textbox: Plain"
+      ],
+      "llmCalls": 0
+    }
+  },
+  "totalLlmCalls": 0
+}

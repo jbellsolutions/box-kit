@@ -1,0 +1,298 @@
+{
+  "date": "2026-10-10T07:32:48.649Z",
+  "model": "z-ai/glm-5.3-flash",
+  "probes": {
+    "variables (secret never sent to model)": {
+      "success": true,
+      "actions": [
+        {
+          "selector": "xpath=/html[1]/body[1]/div[2]/div[1]/div[1]/form[1]/input[1]",
+          "description": "textbox",
+          "method": "type",
+          "arguments": [
+            "%secret%"
+          ]
+        }
+      ],
+      "typedValueIsCanary": true,
+      "canaryInPromptsDuringAct": false,
+      "canaryInSnapshotAfterTyping": true,
+      "canaryInPromptsAfterFollowupObserve": true,
+      "ms": 3874,
+      "llmCalls": 2
+    },
+    "selfHeal:true + broken selector (does it call the model?)": {
+      "success": true,
+      "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+      "actions": [
+        {
+          "selector": "xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+          "description": "Next pagination link",
+          "method": "click",
+          "arguments": []
+        }
+      ],
+      "usage": {
+        "inputTokens": 2634,
+        "outputTokens": 40,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "inferenceTimeMs": 1115
+      },
+      "url": "https://quotes.toscrape.com/page/2/",
+      "ms": 3610,
+      "llmCalls": 1
+    },
+    "iframe + contenteditable (TinyMCE) via snapshot -> act(fill)": {
+      "iframeNodeLines": 4,
+      "sampleIframeLines": [
+        "[1-220] RootWebArea",
+        "[1-308] scrollable, html",
+        "[1-313] paragraph",
+        "[1-314] StaticText: Your content goes here."
+      ],
+      "target": "1-313",
+      "xpath": "/html[1]/body[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[1]/iframe[1]/html[1]/body[1]/p[1]",
+      "fill": {
+        "success": false,
+        "message": "Failed to perform act after self-heal: Failed to fill element (unsupported-element)"
+      },
+      "editorText": "Your content goes here.",
+      "readOnlyBanner": true,
+      "ms": 10716,
+      "llmCalls": 1
+    },
+    "synthetic contenteditable (fill -> Input.insertText path)": {
+      "id": "0-35",
+      "success": true,
+      "text": "Hello 👋 world #test",
+      "events": [
+        "beforeinput:deleteContentBackward:true",
+        "beforeinput:insertText:true",
+        "input:insertText:true"
+      ],
+      "ms": 4402,
+      "llmCalls": 0
+    },
+    "shadow DOM content in snapshot": {
+      "hasShadowText": true,
+      "hasSlotText": true,
+      "treeChars": 733,
+      "ms": 2200,
+      "llmCalls": 0
+    },
+    "file upload via Locator.setInputFiles (no submit)": {
+      "files": [
+        {
+          "name": "hello.txt",
+          "size": 26,
+          "type": "text/plain"
+        }
+      ],
+      "ms": 1229,
+      "llmCalls": 0
+    },
+    "infinite scroll via act(nextChunk) x3": {
+      "before": 3,
+      "steps": [
+        {
+          "success": true,
+          "count": 4
+        },
+        {
+          "success": true,
+          "count": 5
+        },
+        {
+          "success": true,
+          "count": 6
+        }
+      ],
+      "wheel": {
+        "success": true,
+        "message": "Action [mouse.wheel] performed successfully on selector: xpath=/html"
+      },
+      "afterWheel": 7,
+      "ms": 8411,
+      "llmCalls": 0
+    },
+    "new tab (target=_blank) handling": {
+      "pagesBefore": 1,
+      "pagesAfter": 2,
+      "activeUrl": "https://the-internet.herokuapp.com/windows/new",
+      "urls": [
+        "https://the-internet.herokuapp.com/windows",
+        "https://the-internet.herokuapp.com/windows/new"
+      ],
+      "ms": 3171,
+      "llmCalls": 0
+    },
+    "screenshot": {
+      "bytes": 28946,
+      "ms": 2160,
+      "llmCalls": 0
+    }
+  },
+  "metrics": {
+    "actPromptTokens": 5122,
+    "actCompletionTokens": 147,
+    "actReasoningTokens": 0,
+    "actCachedInputTokens": 704,
+    "actInferenceTimeMs": 5889,
+    "extractPromptTokens": 0,
+    "extractCompletionTokens": 0,
+    "extractReasoningTokens": 0,
+    "extractCachedInputTokens": 0,
+    "extractInferenceTimeMs": 0,
+    "observePromptTokens": 480,
+    "observeCompletionTokens": 32,
+    "observeReasoningTokens": 0,
+    "observeCachedInputTokens": 0,
+    "observeInferenceTimeMs": 1032,
+    "totalPromptTokens": 5602,
+    "totalCompletionTokens": 179,
+    "totalReasoningTokens": 0,
+    "totalCachedInputTokens": 704,
+    "totalInferenceTimeMs": 6921
+  },
+  "llm": {
+    "calls": 4,
+    "costUsd": 0.00084532,
+    "inputTokens": 5602,
+    "outputTokens": 179
+  },
+  "llmRecords": [
+    {
+      "callNo": 1,
+      "name": "Act",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 341,
+      "provider": "Together",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 989,
+        "completion_tokens": 41,
+        "total_tokens": 1030,
+        "cost": 0.00008437,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 704,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.00008437,
+          "upstream_inference_prompt_cost": 0.00006387,
+          "upstream_inference_completions_cost": 0.0000205
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 2,
+      "name": "Observation",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 827,
+      "provider": "Parasail",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 480,
+        "completion_tokens": 32,
+        "total_tokens": 512,
+        "cost": 0.000088,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000088,
+          "upstream_inference_prompt_cost": 0.000072,
+          "upstream_inference_completions_cost": 0.000016
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 3,
+      "name": "Act",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 739,
+      "provider": "Parasail",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 2634,
+        "completion_tokens": 40,
+        "total_tokens": 2674,
+        "cost": 0.0004151,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0004151,
+          "upstream_inference_prompt_cost": 0.0003951,
+          "upstream_inference_completions_cost": 0.00002
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 4,
+      "name": "Act",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 2403,
+      "provider": "Parasail",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 1499,
+        "completion_tokens": 66,
+        "total_tokens": 1565,
+        "cost": 0.00025785,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.00025785,
+          "upstream_inference_prompt_cost": 0.00022485,
+          "upstream_inference_completions_cost": 0.000033
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    }
+  ]
+}

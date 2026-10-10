@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-10T07:40:07.965Z",
+  "probes": {
+    "reset: normal page (re-heals entry back to li[1] if needed)": {
+      "ms": 15760,
+      "llmCalls": 1,
+      "success": false,
+      "message": "Failed to self-heal act: No observe results found for action",
+      "actions": [],
+      "urlAfter": "https://quotes.toscrape.com/"
+    },
+    "B: cached xpath resolves to a different link": {
+      "ms": 289,
+      "llmCalls": 0,
+      "success": true,
+      "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[2]/a[1]",
+      "actions": [
+        {
+          "selector": "xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[2]/a[1]",
+          "description": "Next link (pagination link to go to the next page of quotes)",
+          "method": "click",
+          "arguments": [
+            "left"
+          ]
+        }
+      ],
+      "urlAfter": "https://quotes.toscrape.com/page/2/"
+    }
+  },
+  "llm": {
+    "calls": 1,
+    "costUsd": 0.00037623
+  }
+}

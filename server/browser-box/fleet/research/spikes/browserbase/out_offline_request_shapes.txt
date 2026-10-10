@@ -1,0 +1,16 @@
+browserbase SDK 1.20.0
+create() params: ['browser_settings', 'extension_id', 'keep_alive', 'project_id', 'proxies', 'proxy_settings', 'region', 'api_timeout', 'user_metadata', 'extra_headers', 'extra_query', 'extra_body', 'timeout']
+stagehand 4.2.0
+stagehand browserbase.launch params: ['api_key', 'base_url', 'client_options', 'browser_settings', 'extension_id', 'keep_alive', 'proxies', 'region', 'timeout', 'user_metadata']
+stagehand browserbase.connect params: ['api_key', 'base_url', 'client_options', 'session_id', 'extension_id']
+BrowserbaseBrowserSettings: stagehand._generated.input_types ['advanced_stealth', 'block_ads', 'captcha_image_selector', 'captcha_input_selector', 'context', 'extension_id', 'fingerprint', 'log_session', 'os', 'record_session', 'solve_captchas', 'verified', 'viewport']
+browser-use 0.13.11 Browser is BrowserSession: True
+BrowserProfile.cdp_url set: True is_local: False
+Browser(cdp_url=...) is_local: False
+[
+ {
+  "method": "POST",
+  "path": "/v1/sessions",
+  "body": "{\"browserSettings\":{\"context\":{\"id\":\"ctx_dummy\",\"persist\":true},\"solveCaptchas\":true,\"recordSession\":true,\"fingerprint\":{\"operatingSystems\":[\"windows\"]}},\"keepAlive\":true,\"projectId\":\"proj_dummy\",\"proxies\":[{\"type\":\"external\",\"server\":\"http://proxy.example.invalid:8000\",\"username\":\"u\",\"password\":\"p\"}],\"region\":\"us-east-1\",\"timeout\":3600,\"userMetadata\":{\"profile_id\":\"p-0001\",\"owner\":\"fleet\"}}"
+ }
+]

@@ -1,0 +1,23 @@
+launch ended with (expected): ConnectionRefusedError [Errno 61] Connect call failed ('127.0.0.1', 9)
+[
+ {
+  "method": "POST",
+  "path": "/v1/extensions",
+  "body": "<multipart 441819 bytes>"
+ },
+ {
+  "method": "POST",
+  "path": "/v1/sessions",
+  "body": "{\"browserSettings\":{\"context\":{\"id\":\"ctx_dummy\",\"persist\":true}},\"extensionId\":\"ext_dummy\",\"keepAlive\":false,\"proxies\":true,\"region\":\"us-east-1\",\"timeout\":1800.0,\"userMetadata\":{\"profile_id\":\"p-0001\",\"stagehand\":\"true\",\"stagehand_sdk_language\":\"python\",\"stagehand_sdk_version\":\"4.2.0\"}}"
+ },
+ {
+  "method": "POST",
+  "path": "/v1/sessions/sess_dummy",
+  "body": "{\"status\":\"REQUEST_RELEASE\"}"
+ },
+ {
+  "method": "DELETE",
+  "path": "/v1/extensions/ext_dummy",
+  "body": ""
+ }
+]

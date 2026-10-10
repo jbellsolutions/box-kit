@@ -1,0 +1,124 @@
+{
+  "label": "C-skipFP-headless",
+  "at": "2026-10-10T02:54:47.933Z",
+  "body": {
+    "persist": true,
+    "skipFingerprintInjection": true
+  },
+  "session": {
+    "id": "3c3fdaa1-e7f5-4734-983e-919dae87f966",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "dimensions": {
+      "width": 1920,
+      "height": 1080
+    },
+    "status": "live"
+  },
+  "rawLeak": "dbg=0;log=0;wd=false;debugNative=1;keysNative=1",
+  "browserVersion": "152.0.7977.82",
+  "marker_before": null,
+  "fp": {
+    "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "platform": "Linux x86_64",
+    "languages": [
+      "en-US",
+      "en"
+    ],
+    "webdriver": false,
+    "hc": 10,
+    "mem": 8,
+    "screen": [
+      800,
+      600,
+      24,
+      1
+    ],
+    "inner": [
+      1920,
+      992,
+      1920,
+      1080
+    ],
+    "tz": "America/New_York",
+    "tzOffset": 240,
+    "plugins": 0,
+    "chromeObj": "object",
+    "chromeRuntime": "undefined",
+    "uad": {
+      "architecture": "arm",
+      "brands": [
+        {
+          "brand": "Not?A_Brand",
+          "version": "24"
+        },
+        {
+          "brand": "Chromium",
+          "version": "152"
+        }
+      ],
+      "fullVersionList": [
+        {
+          "brand": "Not?A_Brand",
+          "version": "24.0.0.0"
+        },
+        {
+          "brand": "Chromium",
+          "version": "152.0.7977.82"
+        }
+      ],
+      "mobile": false,
+      "platform": "Linux",
+      "platformVersion": ""
+    },
+    "gl": {
+      "vendor": "Google Inc. (Google)",
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 16.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "maxDrawBuffers": null
+    },
+    "workerFp": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 16.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "vendor": "Google Inc. (Google)",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+      "hc": 10,
+      "platform": "Linux x86_64"
+    },
+    "canvasHash": 126949219,
+    "nativeChecks": {
+      "getContext": true,
+      "objectKeys": true,
+      "getOwnPropertyNames": true,
+      "consoleDebug": true,
+      "consoleLog": true,
+      "Worker": true
+    },
+    "hcDescriptorOnNavigator": false
+  },
+  "leakWithPlaywright": {},
+  "sites": {
+    "sannysoft": [
+      "WebDriver\n(New) | missing (passed)",
+      "WebDriver Advanced | passed",
+      "Chrome\n(New) | present (passed)",
+      "Permissions\n(New) | prompt",
+      "Plugins Length\n(Old) | 0",
+      "Plugins is of type PluginArray | failed",
+      "Languages\n(Old) | en-US,en",
+      "WebGL Vendor | Google Inc. (Google)",
+      "WebGL Renderer | ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 16.0.0",
+      "PHANTOM_LANGUAGE | ok | {\n     \"languages\": [\n          \"en-US\",\n          \"en\"\n    ",
+      "HEADCHR_CHROME_OBJ | ok | {}",
+      "HEADCHR_PERMISSIONS | ok | {}",
+      "HEADCHR_PLUGINS | WARN | {\n     \"plugins\": []\n}",
+      "navigator.plugins | {}"
+    ],
+    "dabi": "ERR page.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://deviceandbrowserinfo.com/are_you_a_bot\", waiting until \"networkidle\"\n",
+    "creepjs": {
+      "headless": "67% headless: f49f2dad",
+      "like": "69% like headless: adf92b72",
+      "stealth": "0% stealth: 0c019315",
+      "lies": null,
+      "trust": null,
+      "head": "FP ID: 7a23fdf61a1c5fd8fc37146741b7a513af6898c0e49dfc672e6c995ff4e9e918\nFuzzy: 83bdc0d016278a6ebc0947ef1df71905ff9662165f2c16f8c750000000000000\n1122.60 ms\nWebRTC914675f1\nhost connection:\nblocked\nfoundation/ip:\nunsupported\nblocked\nsdp capabilities: 19da0cf7\nstun connection:\nblocked\ndevices (0):\nblocked\n20.70ms\nTimezone2d612b4e\nEastern Daylight Time\nAmerica, New York\n-27028667038000\n240\n6.70ms\nIntl23d22f8d\nen-US\nJuly at Eastern Daylight Time\nAmerican English\n21 million\nnext year\n0 or 1\none\n13.50ms\nHeadless9c79563e\nchromium: true\n69% like headless: adf92b72\n67% headless: f49f2dad\n0% stealth: 0c019315\nplatform hints:\nArial\n0:73:100:91:91\n\n0.90ms\nResistanceeb6b354a\nprivacy: unknown\nsecurity: unknown\nmode: unknown\nextension: unknown\n967.50ms\nServiceWorkerGlobalScope\nWorkerabe39963\nlang/timezone:\nen-US (1 US dollar)\nAmerica/New_York (240)\nconfidence: moderate\ngpu:\nGoogle Inc. (Google)\nANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 16.0.0) (0x0000C0DE)), SwiftShader driver)\nuserAgent:\nMozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36\ndevice:\nLinux (Linux x86_64)\nLinux x86_64\ncores: 10, ram: 8\nuserAgentData:\nChromium 152 (15"
+    }
+  }
+}

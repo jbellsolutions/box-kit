@@ -1,0 +1,103 @@
+{
+  "label": "E-default-HEADFUL-sites",
+  "at": "2026-10-10T02:58:22.921Z",
+  "body": {
+    "persist": true,
+    "headless": false
+  },
+  "session": {
+    "id": "d4ac2d32-d17a-4c57-9883-2d6ee0173c1e",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "dimensions": {
+      "width": 1920,
+      "height": 1080
+    },
+    "status": "live"
+  },
+  "rawLeak": "dbg=0;log=0;wd=false;debugNative=1;keysNative=1",
+  "browserVersion": "152.0.7977.82",
+  "marker_before": null,
+  "fp": {
+    "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "platform": "Linux x86_64",
+    "languages": [
+      "en-US",
+      "en"
+    ],
+    "webdriver": false,
+    "hc": 5,
+    "mem": 8,
+    "screen": [
+      1920,
+      1080,
+      24,
+      1
+    ],
+    "inner": [
+      1920,
+      1080,
+      1919,
+      1079
+    ],
+    "tz": "America/New_York",
+    "tzOffset": 240,
+    "plugins": 0,
+    "chromeObj": "object",
+    "chromeRuntime": "undefined",
+    "uad": {
+      "architecture": "",
+      "brands": [],
+      "fullVersionList": [],
+      "mobile": false,
+      "platform": "",
+      "platformVersion": ""
+    },
+    "gl": {
+      "err": "TypeError: Cannot read properties of null (reading 'getExtension')"
+    },
+    "workerFp": {
+      "err": "TypeError: Cannot read properties of null (reading 'getExtension')",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+      "hc": 8,
+      "platform": "Linux x86_64"
+    },
+    "canvasHash": 126949219,
+    "nativeChecks": {
+      "getContext": false,
+      "objectKeys": false,
+      "getOwnPropertyNames": false,
+      "consoleDebug": false,
+      "consoleLog": false,
+      "Worker": false
+    },
+    "hcDescriptorOnNavigator": true
+  },
+  "leakWithPlaywright": {},
+  "sites": {
+    "sannysoft": [
+      "WebDriver\n(New) | missing (passed)",
+      "WebDriver Advanced | passed",
+      "Chrome\n(New) | present (passed)",
+      "Permissions\n(New) | prompt",
+      "Plugins Length\n(Old) | 0",
+      "Plugins is of type PluginArray | failed",
+      "Languages\n(Old) | en-US,en",
+      "WebGL Vendor | Canvas has no webgl context",
+      "WebGL Renderer | Canvas has no webgl context",
+      "PHANTOM_LANGUAGE | ok | {\n     \"languages\": [\n          \"en-US\",\n          \"en\"\n    ",
+      "HEADCHR_CHROME_OBJ | ok | {}",
+      "HEADCHR_PERMISSIONS | ok | {}",
+      "HEADCHR_PLUGINS | WARN | {\n     \"plugins\": []\n}",
+      "navigator.plugins | {}"
+    ],
+    "dabi": "Search proxy IP\nProxy Detection Database\nPricing\nMy Device\nAPIs\nData\nBlog\nLogin\n\n🔥 New: Bot detection & fingerprinting playground — test your browser signals\n\nAre you a bot?\n❌\nYou are a bot!\nRaw detection details\nCopy\n{\n  \"isBot\": true,\n  \"details\": {\n    \"hasBotUserAgent\": false,\n    \"hasWebdriverTrue\": false,\n    \"hasWebdriverInFrameTrue\": false,\n    \"isPlaywright\": false,\n    \"hasInconsistentChromeObject\": false,\n    \"isPhantom\": false,\n    \"isNightmare\": false,\n    \"isSequentum\": false,\n    \"isSeleniumChromeDefault\": false,\n    \"isHeadlessChrome\": false,\n    \"isWebGLInconsistent\": false,\n    \"hasInconsistentWebGLShaderLang\": false,\n    \"hasInconsistentTimingResolution\": true,\n    \"isAutomatedWithCDP\": true,\n    \"isAutomatedWithCDPInWebWorker\": false,\n    \"hasInconsistentClientHints\": false,\n    \"hasInconsistentGPUFeatures\": false,\n    \"isIframeOverridden\": false,\n    \"hasInconsistentWorkerValues\": true,\n    \"hasHighHardwareConcurrency\": false,\n    \"hasHeadlessChromeDefaultScreenResolution\": false,\n    \"hasSuspiciousWeakSignals\": false\n  }\n}\nHow does this test work?\n\nYou can use this page to test whether or not your bot is detected. The test is based only on fingerprinting signals:\n\nClient-side signals: Browser fingerprinting (requires JavaScript)\nServer-side signals: HTTP headers (future: TCP/TLS fingerprinting)\n\nThis test does not use IP reputation or user behavior. You can run several tests in a row; it won't affect the result.\n\nNew: We have added a new test that detects suspicious client-side behavior, such as mouse movements, typing speed, and form submission. It also detects CDP mouse leak. You can find it here.\n\n▶\nDetection signals explained\n\nhasBotUserAgent: True if the User-Agent string (navigator.userAgent) matches known bot, crawler, or automation tool patterns.\n\nhasWebdriverTrue: True if navigator.webdriver is set to true, which is a direct indicator of browser automation (e.g., Selenium, Puppeteer, Playwright).\n\nhasWebdriverInFrameTrue: True if navigator.webdriver is detected as true inside an iframe.\n\nisPlaywright: True if Playwright-specific global variables or bindings (such as __pwInitScripts or __playwright__binding__) are present in the window object.\n\nhasInconsistentChromeObject: True if the window.chrome object is missing or inconsistent for a Chromium-based browser.\n\nisPhantom: True if PhantomJS-specific properties (window.callPhantom, window._phantom, or window.phantom) are detected, indicating the use of the PhantomJS headless b",
+    "creepjs": {
+      "headless": "0% headless: 52defe05",
+      "like": "69% like headless: 89e54256",
+      "stealth": "0% stealth: 295d4148",
+      "lies": null,
+      "trust": null,
+      "head": "FP ID: bf0f757204d3237c3f731c6ef26c12bc1b178e016a9115ec750d2c2aa0b43809\nFuzzy: 83bff2341b278a64fc0997e01dfee9059ff51216bf2cb6f8cf59000000000000\n528.00 ms\nWebRTC914675f1\nhost connection:\nblocked\nfoundation/ip:\nunsupported\nblocked\nsdp capabilities: 19da0cf7\nstun connection:\nblocked\ndevices (0):\nblocked\n10.50ms\nTimezone2d612b4e\nEastern Daylight Time\nAmerica, New York\n-27028667038000\n240\n29.50ms\nIntl23d22f8d\nen-US\nJuly at Eastern Daylight Time\nAmerican English\n21 million\nnext year\n0 or 1\none\n13.50ms\nHeadless194c0ee1\nchromium: true\n69% like headless: 89e54256\n0% headless: 52defe05\n0% stealth: 295d4148\nplatform hints:\nArial\n0:73:100:91:91\n\n0.90ms\nResistanceb2156590\nprivacy: unknown\nsecurity: unknown\nmode: unknown\nextension: acd3134f\n169.00ms\nServiceWorkerGlobalScope\nWorker97ae6407\nlang/timezone:\nen-US (1 US dollar)\nAmerica/New_York (240)\ngpu:\nunsupported\nuserAgent:\nua reduction\nMozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36\ndevice:\nLinux (Linux x86_64)\nLinux x86_64\ncores: 10, ram: 8\nuserAgentData:\nChromium 152 (152.0.7977.82)\nLinux arm_64\nWebGL\nimages: blocked\npixels: blocked\nparams (0): blocked\nexts (0): blocked\ngpu:\nblocked\n0.00ms\n"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+Slot = 1.85 GiB, 0.6 vCPU. Node s-8vcpu-16gb (8 vCPU / 16 GiB, $96/mo) holds 7 active slots.
+
+Per-action model cost: system1 $0.000042, cached $0.000000, llm_act $0.001240, bu_step $0.001400
+  mix A: System-1-first (target): $0.000148/action
+  mix B: LLM-heavy (cold, no cache): $0.000897/action
+  planner per task $0.00290
+
+| profiles x h/day | browser-h/mo | peak conc. | nodes (static, incl. spare) | self-host nodes static | self-host nodes autoscaled | control plane | proxies | models mix A | models mix B | storage overage |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 30 x 1 | 900 | 4 | 2 | $192 | $122 | $53 | $90 | $29 | $96 | $0 |
+| 30 x 3 | 2,700 | 12 | 3 | $288 | $175 | $53 | $90 | $87 | $289 | $0 |
+| 100 x 1 | 3,000 | 13 | 3 | $288 | $183 | $83 | $275 | $97 | $321 | $0 |
+| 100 x 3 | 9,000 | 38 | 7 | $672 | $358 | $83 | $275 | $290 | $964 | $0 |
+| 1000 x 1 | 30,000 | 125 | 19 | $1,824 | $971 | $283 | $2,500 | $967 | $3,212 | $4 |
+| 1000 x 3 | 90,000 | 375 | 57 | $5,472 | $2,720 | $283 | $2,500 | $2,900 | $9,635 | $11 |
+
+Monthly totals, model mix A (System-1-first). Proxies, control plane and models are in every column.
+
+| profiles x h/day | self-hosted (static) | self-hosted (autoscaled) | Steel Cloud + our workers | Browserbase + our workers | always-on self-hosted (for contrast) |
+|---|---:|---:|---:|---:|---:|
+| 30 x 1 | $364 | $294 | $470 | $359 | $652 |
+| 30 x 3 | $518 | $405 | $644 | $597 | $710 |
+| 100 x 1 | $743 | $639 | $893 | $852 | $1,895 |
+| 100 x 3 | $1,320 | $1,007 | $1,662 | $1,741 | $2,088 |
+| 1000 x 1 | $5,577 | $4,724 | $6,537 (Enterprise, custom) | $7,137 (Scale, custom) | $17,481 |
+| 1000 x 3 | $11,165 | $8,413 | $13,949 (Enterprise, custom) | $15,749 (Scale, custom) | $19,421 |
+
+Vendor browser line items alone (before proxies/models/control):
+
+| profiles x h/day | Steel Cloud browser-hours | Browserbase browser-hours | our agent workers (cloud cases) |
+|---|---:|---:|---:|
+| 30 x 1 | $250 | $139 | $48 |
+| 30 x 3 | $366 | $319 | $48 |
+| 100 x 1 | $390 | $349 | $48 |
+| 100 x 3 | $870 | $949 | $144 |
+| 1000 x 1 | $2,400 | $3,000 | $384 |
+| 1000 x 3 | $7,200 | $9,000 | $1,056 |
+
+Storage: evidence GiB retained / profile-bundle GiB:
+  30 x 1: evidence 5 GiB, bundles 8 GiB
+  30 x 3: evidence 16 GiB, bundles 8 GiB
+  100 x 1: evidence 18 GiB, bundles 25 GiB
+  100 x 3: evidence 54 GiB, bundles 25 GiB
+  1000 x 1: evidence 180 GiB, bundles 250 GiB
+  1000 x 3: evidence 540 GiB, bundles 250 GiB

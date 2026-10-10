@@ -1,0 +1,13 @@
+name: browser-fleet
+version: 0.0.1
+manifest_version: 2
+api_version: 1
+description: "Spike stub: browser-fleet client plugin (one tool, one hook, one bundled skill). Not functional."
+author: "hermes-packaging spike"
+license: MIT
+provides_tools:
+  - fleet_ping
+provides_hooks:
+  - post_tool_call
+config_schema:
+  vault_subdir: {type: str, default: "Browser Fleet", description: "Obsidian sub-folder for run notes"}

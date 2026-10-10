@@ -1,0 +1,140 @@
+{
+ "topic": "Existing assets audit: what the System 1 browser fleet should reuse from browser-box, an older local tool checkout and several related repositories",
+ "dossier": "research/dossiers/existing-assets.md",
+ "claims": [
+  {
+   "id": "EA-1",
+   "claim": "Self-hosted Steel OSS ignores the value of userDataDir. Any truthy userDataDir or persist:true uses the single fixed directory <build>/../../user-data-dir, which is /app/api/user-data-dir in the image.",
+   "provenance": "source-code + hands-on",
+   "evidence": "steel-browser api/src/services/session.service.ts:180-183 @1131a02; image sha256:7a161b95\u2026 /app/api/build/services/session.service.js:89-91. Spike: POST /v1/sessions {persist:true,userDataDir:'/tmp/custom-profile-x'} returned 200, the Steel log shows userDataDir /app/api/user-data-dir, and /tmp/custom-profile-x was never created (RESULTS.md row 1).",
+   "why_it_matters": "Per-profile isolation cannot come from one Steel instance with many profile paths. It needs one Steel container per awake profile with that profile's volume mounted at the fixed path, or a patched Steel."
+  },
+  {
+   "id": "EA-2",
+   "claim": "OSS Steel's CreateSession schema has no persistProfile/profileId fields. browser-box's steel.create_session sends them, they are silently stripped, and the request still returns 200.",
+   "provenance": "source-code + hands-on",
+   "evidence": "sessions.schema.ts @1131a02 (only persist and userDataDir); grep of /app/api/build for persistProfile|profileId returns nothing; browser-box gateway/gateway/steel.py:103,105 @4c837a3; spike create with those fields returned 200.",
+   "why_it_matters": "The box's session persistence holds only within one Steel lifetime. The fleet cannot reuse steel.py's profile fields, and the box's session card slightly overclaims."
+  },
+  {
+   "id": "EA-3",
+   "claim": "One OSS Steel process runs one browser session at a time, through a single activeSession.",
+   "provenance": "source-code",
+   "evidence": "steel-browser api/src/services/session.service.ts:67 'public activeSession: Session' @1131a02; image session.service.js has 20 references to activeSession.",
+   "why_it_matters": "Fleet density is one Steel container per concurrently awake profile, so RAM per awake profile (\u2248550 MiB to 1.36 GiB measured) caps concurrency per host."
+  },
+  {
+   "id": "EA-4",
+   "claim": "Recreating a Steel container on an existing profile volume with a stale Chromium SingletonLock makes Steel log a process_singleton launch error, still return HTTP 200 from POST /v1/sessions, and serve a browser without the profile's cookies. Removing Singleton* restores them.",
+   "provenance": "hands-on",
+   "evidence": "RESULTS.md rows 6-7 (2026-10-10 03:05-03:07 UTC): the volume still held the cookies; the log says 'The profile appears to be in use by another Chromium process'; after rm Singleton*, the cookies were present.",
+   "why_it_matters": "'Still logged in' must be verified after every wake. The infra 200 is not proof. The wrapper must clear locks under a one-container-per-profile lease."
+  },
+  {
+   "id": "EA-5",
+   "claim": "A cookie set about 5 s before Steel release was not persisted; one set 40 s before release was. This was n=1, and release calls browser.close() then process().kill().",
+   "provenance": "hands-on + source-code",
+   "evidence": "RESULTS.md rows 2-4; image cdp.service.js:382-383 and endSession at :984.",
+   "why_it_matters": "Releasing a profile immediately after a human login can silently lose the auth the fleet promises to keep."
+  },
+  {
+   "id": "EA-6",
+   "claim": "browser-box's lane lock is host-local: an fcntl flock on a file path, which cannot coordinate across hosts.",
+   "provenance": "source-code",
+   "evidence": "browser-box gateway/gateway/lock.py:23 (LOCK_PATH), :56 (fcntl.flock) @4c837a3.",
+   "why_it_matters": "A multi-droplet fleet needs a DB lease. An earlier internal job-claim design exists as a starting point, but it is safe only serially."
+  },
+  {
+   "id": "EA-7",
+   "claim": "An earlier internal job-claim design leases at most one job per browser profile (lease not expired), uses Postgres SKIP LOCKED with a hashed lease token, and holds jobs with uncertain_external_state instead of retrying them.",
+   "provenance": "source-code",
+   "evidence": "An earlier internal job-claim design at a pinned commit (file and line references withheld).",
+   "why_it_matters": "A ready-made pattern for 'one profile, one writer' and safe handling of uncertain posts and replies at fleet scale."
+  },
+  {
+   "id": "EA-8",
+   "claim": "browser-box's Browser-Use runner is pinned to browser-use 0.13.10 and refuses any other installed version. The shared scratch venv has 0.13.11, so the self-check fails.",
+   "provenance": "source-code + hands-on",
+   "evidence": "agents/browseruse/runner.py:32 PINNED='0.13.10', :58 version check @4c837a3; running scratch venv python -I runner.py --self-check prints 'browser-use 0.13.11 is installed; the confinement here is written against 0.13.10'.",
+   "why_it_matters": "Reusing the confinement requires a re-pin and re-validation against the browser-use version the fleet chooses."
+  },
+  {
+   "id": "EA-9",
+   "claim": "Existing code calls TypeSafe System One by direct HTTP POST to https://api.typesafe.ai/v1/systemone with model 'jev-1.13.0' and typed questions {type:'choice', criteria, instructions}.",
+   "provenance": "source-code",
+   "evidence": "The trial's model client at a pinned commit (file references withheld); jev-automation package.json @typesafe-ai/sdk ^0.6.0 @edcbbae.",
+   "why_it_matters": "Grounds the System-1 integration in a real call shape, not the Gemini conversation's invented api.typesafe.com/v1/jev/decide. The System-1 dossier should confirm it against live docs."
+  },
+  {
+   "id": "EA-10",
+   "claim": "The System One trial has measured zero live System-One or GLM cases. Its 100/100 offline result used scripted choices with no model calls, and its \u226595% live target is not met.",
+   "provenance": "source-code",
+   "evidence": "The trial's reports at a pinned commit (zero live provider calls; no committed model usage).",
+   "why_it_matters": "No existing evidence supports 'System 1 powers 90%+ of actions'. It must be measured per procedure."
+  },
+  {
+   "id": "EA-11",
+   "claim": "box-kit's export script archives the whole browser-box repo at a ref into the public box-kit repo, excluding only .claude-plugin, .mcp.json, skills, commands, bench and tests/test_plugin.py.",
+   "provenance": "source-code",
+   "evidence": "github.com/jbellsolutions/box-kit scripts/export.sh @52710179a71620acd493b0a02061d4a88077e090; gh repo view box-kit isPrivate=false.",
+   "why_it_matters": "A fleet/ subtree merged to browser-box main would be published unless export.sh excludes it."
+  },
+  {
+   "id": "EA-12",
+   "claim": "guard.Guard takes its CDP URL as a constructor parameter. Only the module-level GUARD singleton is bound to the single Steel, so one Guard can be built per awake browser.",
+   "provenance": "source-code",
+   "evidence": "browser-box gateway/gateway/guard.py class Guard.__init__(self, cdp_url=None) and :318 GUARD = Guard() @4c837a3.",
+   "why_it_matters": "The fleet can reuse the proven in-browser SSRF guard unchanged, by import, per profile."
+  }
+ ],
+ "gaps": [
+  "Per-profile container lifecycle for OSS Steel: one container per awake profile, a named volume at /app/api/user-data-dir, Singleton* cleanup, a cookie-flush-safe release, and post-release health/recreate",
+  "A per-profile 'still logged in' auth probe after every wake (site-specific markers); infra HTTP 200 is not proof",
+  "A per-profile identity pin record (proxy endpoint, UA, timezone, viewport, fingerprint seed) applied identically on every wake, with exit-IP drift detection",
+  "A cross-host fleet lease service and per-host capacity scheduler (wake/sleep, routines); lock.py is host-local",
+  "Integrating System-1 (Jev) decide/verify into Stagehand's observe/act loop, with per-procedure thresholds measured on target sites; no existing measurement of System-1 share or accuracy on social platforms",
+  "An engine router (system1-first \u2192 Stagehand \u2192 Browser-Use \u2192 reasoning) with logged reasons and per-procedure measured winners",
+  "Social-platform procedures with platform-specific receipts (the post or DM is visible), campaign authorization manifests, per-profile/per-platform rate caps, and reconciliation of uncertain effects",
+  "Human re-auth queue and authenticated, time-limited live-viewer brokering per profile (the box only offers devtools over an SSH tunnel)",
+  "A fleet-wide spend ledger across TypeSafe, OpenRouter, Browserbase and proxies, with per-profile, per-client and fleet caps",
+  "Encrypted at-rest storage and backup for profile volumes (the trial's portability deliberately excludes cookies, so no pattern exists)",
+  "Per-container proxy-only egress rules and a per-image shield-check gate",
+  "A fleet Hermes plugin/skill and per-profile scoped token issuance (see the hermes-packaging dossier)",
+  "Upstream drift watch and self-checks for Stagehand, Browser-Use and the Steel image digest (the watch does not track Stagehand, Steel or anti-detect)",
+  "Obsidian-backed per-profile memory notes"
+ ],
+ "risks": [
+  "Silent auth loss in OSS Steel: a stale SingletonLock gave HTTP 200 with a logged-out browser; a fast release lost the cookie; release returned 500 twice and left no browser. Each was seen once or twice on arm64 Docker and needs repeating on amd64 droplets",
+  "Steel being single-session per process plus ~0.55-1.36 GiB per awake browser means RAM per awake profile, not profile count, limits scale",
+  "No measured basis for '90% System 1': 0 live trial cases, and B5 recorded a Jev search grounding miss (0/3)",
+  "Prompt injection: DMs and comments are attacker-written and agents act logged in; Browser-Use is the most exposed",
+  "No existing asset has tested anti-detection on Steel; an older local tool's matrix covers other products and is partly vendor claims",
+  "Policy tension: an earlier internal outbound-email project disclaims fingerprint spoofing and proxy rotation, while the fleet brief seeks anti-detect, proxies and stealth. This needs Justin's explicit position, plus platform-ToS and client-consent framing",
+  "Public export leak: box-kit/scripts/export.sh publishes the whole browser-box repo, so fleet/ would leak if merged before export.sh excludes it",
+  "Repo visibility mismatch: jev-automation (a public fork), jev-agent-kit, super-saiyan-browser, hermes-workforce-router and box-kit are public, despite the brief calling them private. Never commit client procedures or account handles there",
+  "Version drift: browser-use pin 0.13.10 vs scratch 0.13.11; Steel image 2026-09-16 vs source 2026-10-06; jev-1.13.0 pinned in code",
+  "Guard DNS is resolved locally while proxied Chromium resolves at the proxy. Effect on detection or geo-consistency is unknown",
+  "Profile volumes hold clients' logged-in social accounts, a high-value secret store with no encryption, backup or access design yet",
+  "browser-box's session card and steel.py persistProfile slightly overclaim persistence on OSS Steel. This is the box owner's fix, not made here",
+  "Another agent's container fleet-spike-antidetect was running on the shared Docker host during this spike; it was left untouched"
+ ],
+ "recommendations": [
+  "Base Steel persistence on one container per awake profile with a named volume at /app/api/user-data-dir. The wrapper entrypoint removes Singleton* only while the profile's lease is held. Never rely on userDataDir values, persistProfile or profileId",
+  "After every wake, run a site-specific logged-in probe before any work. On failure, move the profile to needs_reauth and stop; do not attempt a login",
+  "Never release a profile within 30-40 s of a login or auth change until a better flush mechanism is proven. Test Steel sessionContext export and inject as a second copy, and a fixed --hostname per profile as a lock alternative",
+  "Pin the Steel image by digest (sha256:7a161b95\u2026 or a newer reviewed one) and re-run this persistence spike plus the 18-attack shield-check on an amd64 droplet before relying on it",
+  "Import browser-box gateway.security and gateway.guard.Guard into fleet code (one Guard per awake browser) rather than copying them, and run tests/scope_vectors.json in the fleet suite",
+  "Build the fleet lease and scheduler on a DB-enforced one-lease-per-profile rule (hashed token, uncertain means held), with lock.py's flock only as a same-host second guard",
+  "Build procedures, receipts and release rules on the pattern of an earlier internal trial: digest-pinned, adapters declare authority and a verifier, intent journaled before the effect, never replay, three accepted outcomes before release, rollback per procedure",
+  "Lift jev-automation core/{decide,verify,elements,scope}.ts into the Stagehand worker as the System-1 layer, and measure per-procedure thresholds and the System-1 share on held-out cases before claiming any percentage",
+  "Replace per-action post confirmation with immutable campaign authorization manifests (an earlier internal approval-manifest pattern) plus independent receipts, and keep per-action human confirmation outside the manifest",
+  "Before any merge of fleet/ to browser-box main, add --exclude='fleet' to box-kit/scripts/export.sh, or explicitly decide what may be public",
+  "Ask the browser-box owner to correct steel.py's persistProfile/profileId and the session card's persistence wording. Do not change it from the fleet branch",
+  "Re-pin the Browser-Use runner to the version the browser-use dossier chooses and re-run runner.py --self-check; it currently refuses 0.13.11",
+  "Extend the internal drift-watch pipeline's queries with Stagehand, steel-browser, Browserbase, DICloak and anti-detect so upstream changes trigger re-validation",
+  "Ask Justin to state the fleet's position on fingerprint spoofing, proxy rotation and stealth, given that earlier internal project's disclaimer, before the fleet charter is finalized",
+  "Tell the orchestrator that several repos the brief calls private are public (jev-automation, jev-agent-kit, super-saiyan-browser, hermes-workforce-router, box-kit)",
+  "Treat the older local tool checkout as now superseded by another repo. Use only its publishing-safety taxonomy, verifier checklist, ledger and proxy-tier notes; do not use its Steel or Browser-Use specialist skills (Cloud-targeted) or its anti-detection conclusions"
+ ],
+ "spend_usd": 0
+}

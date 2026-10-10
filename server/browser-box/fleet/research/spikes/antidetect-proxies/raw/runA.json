@@ -1,0 +1,79 @@
+{
+  "label": "A-default-persist-profA",
+  "at": "2026-10-10T02:52:17.132Z",
+  "body": {
+    "persist": true,
+    "userDataDir": "/tmp/profA"
+  },
+  "session": {
+    "id": "6b9f57fd-1ecb-489f-b62f-225d6c37baae",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+    "dimensions": {
+      "width": 1920,
+      "height": 1080
+    },
+    "status": "live"
+  },
+  "rawLeak": "dbg=0;log=0;wd=false;debugNative=1;keysNative=1",
+  "browserVersion": "152.0.7977.82",
+  "marker_before": null,
+  "fp": {
+    "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+    "platform": "Linux x86_64",
+    "languages": [
+      "en-US",
+      "en"
+    ],
+    "webdriver": false,
+    "hc": 32,
+    "mem": 8,
+    "screen": [
+      800,
+      600,
+      24,
+      1
+    ],
+    "inner": [
+      1920,
+      1080,
+      1920,
+      1080
+    ],
+    "tz": "America/New_York",
+    "tzOffset": 240,
+    "plugins": 0,
+    "chromeObj": "object",
+    "chromeRuntime": "undefined",
+    "uad": {
+      "architecture": "",
+      "brands": [],
+      "fullVersionList": [],
+      "mobile": false,
+      "platform": "",
+      "platformVersion": ""
+    },
+    "gl": {
+      "vendor": 0,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "maxDrawBuffers": 32
+    },
+    "workerFp": {
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1070 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "vendor": "Google Inc. (NVIDIA)",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+      "hc": 8,
+      "platform": "Linux x86_64"
+    },
+    "canvasHash": 126949219,
+    "nativeChecks": {
+      "getContext": false,
+      "objectKeys": false,
+      "getOwnPropertyNames": false,
+      "consoleDebug": false,
+      "consoleLog": false,
+      "Worker": false
+    },
+    "hcDescriptorOnNavigator": true
+  },
+  "leakWithPlaywright": {}
+}

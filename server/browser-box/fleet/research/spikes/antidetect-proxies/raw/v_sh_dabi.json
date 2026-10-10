@@ -1,0 +1,3 @@
+[stagehand] INFO stagehand.init
+[stagehand] INFO stagehand.close
+{"cdpUrl":"http://127.0.0.1:3303","connectMs":139,"createMs":345,"title":"Example Domain","dabi":{"isBot":true,"flagged":["isAutomatedWithCDP"]}}

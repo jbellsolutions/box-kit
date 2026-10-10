@@ -1,0 +1,20 @@
+{
+  "steelBase": "http://127.0.0.1:3301",
+  "cdpUrl": "ws://127.0.0.1:3301/",
+  "withSessionExt": false,
+  "steps": [
+    {
+      "name": "localBrowser.connect",
+      "ok": true,
+      "ms": 103
+    },
+    {
+      "name": "Stagehand.create",
+      "ok": false,
+      "ms": 28,
+      "error": "CDP websocket failed to open",
+      "cause": "CDP websocket failed to open"
+    }
+  ],
+  "fatal": "CDP websocket failed to open"
+}

@@ -1,0 +1,50 @@
+{
+ "label": "quotes_extract",
+ "name": "Extraction",
+ "system_prompt": "You are extracting content on behalf of a user. If a user asks you to extract a 'list' of information, or 'all' information, YOU MUST EXTRACT ALL OF THE INFORMATION THAT THE USER REQUESTS. You will be given: 1. An instruction 2. A list of DOM elements to extract from. Print the exact text from the DOM elements with all symbols, characters, and endlines as is. Print null or an empty string if no new information is found. If a user is attempting to extract links or URLs, you MUST respond with ONLY the IDs of the link elements. Do not attempt to extract links directly from the text unless absolutely necessary. ",
+ "messages": [
+  {
+   "role": "user",
+   "content": {
+    "type": "text",
+    "text": "Instruction: extract every quote's text and author on this page\nDOM: [0-2126] RootWebArea: Quotes to Scrape\n  [0-2128] scrollable, html\n    [0-2135] body\n      [0-2136] div\n        [0-2137] div\n          [0-2139] heading: Quotes to Scrape\n            [0-2140] link: Quotes to Scrape\n          [0-2143] paragraph\n            [0-2144] link: Login\n        [0-2146] div\n          [0-2147] div\n            [0-2148] div\n              [0-2150] StaticText: \u201cThe world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.\u201d\n              [0-2382] StaticText: \n              [0-2152] StaticText: by\n              [0-2154] StaticText: Albert Einstein\n              [0-2383] StaticText: \n              [0-2155] link: (about)\n              [0-2157] div\n                [0-2158] StaticText: Tags:\n                [0-2160] link: change\n                [0-2384] StaticText: \n                [0-2162] link: deep-thoughts\n                [0-2385] StaticText: \n                [0-2164] link: thinking\n                [0-2386] StaticText: \n                [0-2166] link: world\n            [0-2168] div\n              [0-2170] StaticText: \u201cIt is our choices, Harry, that show what we truly are, far more than our abilities.\u201d\n              [0-2387] StaticText: \n              [0-2172] StaticText: by\n              [0-2174] StaticText: J.K. Rowling\n              [0-2388] StaticText: \n              [0-2175] link: (about)\n              [0-2177] div\n                [0-2178] StaticText: Tags:\n                [0-2180] link: abilities\n                [0-2389] StaticText: \n                [0-2182] link: choices\n            [0-2184] div\n              [0-2186] StaticText: \u201cThere are only two ways to live your life. One is as though nothing is a miracle. The other is as though everything is a miracle.\u201d\n              [0-2390] StaticText: \n              [0-2188] StaticText: by\n              [0-2190] StaticText: Albert Einstein\n              [0-2391] StaticText: \n              [0-2191] link: (about)\n              [0-2193] div\n                [0-2194] StaticText: Tags:\n                [0-2196] link: inspirational\n                [0-2392] StaticText: \n                [0-2198] link: life\n                [0-2393] StaticText: \n                [0-2200] link: live\n                [0-2394] StaticText: \n                [0-2202] link: miracle\n                [0-2395] StaticText: \n                [0-2204] link: miracles\n            [0-2206] div\n              [0-2208] StaticText: \u201cThe person, be it gentleman or lady, who has not pleasure in a good novel, must be intolerably stupid.\u201d\n              [0-2396] StaticText: \n              [0-2210] StaticText: by\n              [0-2212] StaticText: Jane Austen\n              [0-2397] StaticText: \n              [0-2213] link: (about)\n              [0-2215] div\n                [0-2216] StaticText: Tags:\n                [0-2218] link: aliteracy\n                [0-2398] StaticText: \n                [0-2220] link: books\n                [0-2399] StaticText: \n                [0-2222] link: classic\n                [0-2400] StaticText: \n                [0-2224] link: humor\n            [0-2226] div\n              [0-2228] StaticText: \u201cImperfection is beauty, madness is genius and it's better to be absolutely ridiculous than absolutely boring.\u201d\n              [0-2401] StaticText: \n              [0-2230] StaticText: by\n              [0-2232] StaticText: Marilyn Monroe\n              [0-2402] StaticText: \n              [0-2233] link: (about)\n              [0-2235] div\n                [0-2236] StaticText: Tags:\n                [0-2238] link: be-yourself\n                [0-2403] StaticText: \n                [0-2240] link: inspirational\n            [0-2242] div\n              [0-2244] StaticText: \u201cTry not to become a man of success. Rather become a man of value.\u201d\n              [0-2404] StaticText: \n              [0-2246] StaticText: by\n              [0-2248] StaticText: Albert Einstein\n              [0-2405] StaticText: \n              [0-2249] link: (about)\n              [0-2251] div\n                [0-2252] StaticText: Tags:\n                [0-2254] link: adulthood\n                [0-2406] StaticText: \n                [0-2256] link: success\n                [0-2407] StaticText: \n                [0-2258] link: value\n            [0-2260] div\n              [0-2262] StaticText: \u201cIt is better to be hated for what you are than to be loved for what you are not.\u201d\n              [0-2408] StaticText: \n              [0-2264] StaticText: by\n              [0-2266] StaticText: Andr\u00e9 Gide\n              [0-2409] StaticText: \n              [0-2267] link: (about)\n              [0-2269] div\n                [0-2270] StaticText: Tags:\n                [0-2272] link: life\n                [0-2410] StaticText: \n                [0-2274] link: love\n            [0-2276] div\n              [0-2278] StaticText: \u201cI have not failed. I've just found 10,000 ways that won't work.\u201d\n              [0-2411] StaticText: \n              [0-2280] StaticText: by\n              [0-2282] StaticText: Thomas A. Edison\n              [0-2412] StaticText: \n              [0-2283] link: (about)\n              [0-2285] div\n                [0-2286] StaticText: Tags:\n                [0-2288] link: edison\n                [0-2413] StaticText: \n                [0-2290] link: failure\n                [0-2414] StaticText: \n                [0-2292] link: inspirational\n                [0-2415] StaticText: \n                [0-2294] link: paraphrased\n            [0-2296] div\n              [0-2298] StaticText: \u201cA woman is like a tea bag; you never know how strong it is until it's in hot water.\u201d\n              [0-2416] StaticText: \n              [0-2300] StaticText: by\n              [0-2302] StaticText: Eleanor Roosevelt\n              [0-2417] StaticText: \n              [0-2303] link: (about)\n              [0-2305] div\n                [0-2306] StaticText: Tags:\n                [0-2308] link: misattributed-eleanor-roosevelt\n            [0-2310] div\n              [0-2312] StaticText: \u201cA day without sunshine is like, you know, night.\u201d\n              [0-2418] StaticText: \n              [0-2314] StaticText: by\n              [0-2316] StaticText: Steve Martin\n              [0-2419] StaticText: \n              [0-2317] link: (about)\n              [0-2319] div\n                [0-2320] StaticText: Tags:\n                [0-2322] link: humor\n                [0-2420] StaticText: \n                [0-2324] link: obvious\n                [0-2421] StaticText: \n                [0-2326] link: simile\n            [0-2328] navigation\n              [0-2329] list\n                [0-2330] listitem\n                  [0-2381] ListMarker: \u2022\n                  [0-2331] link: Next\n          [0-2335] div\n            [0-2336] heading: Top Ten tags\n            [0-2339] link: love\n            [0-2342] link: inspirational\n            [0-2345] link: life\n            [0-2348] link: humor\n            [0-2351] link: books\n            [0-2354] link: reading\n            [0-2357] link: friendship\n            [0-2360] link: friends\n            [0-2363] link: truth\n            [0-2366] link: simile\n      [0-2368] contentinfo\n        [0-2369] div\n          [0-2370] paragraph\n            [0-2371] StaticText: Quotes by:\n            [0-2372] link: GoodReads.com\n          [0-2374] paragraph\n            [0-2375] StaticText: Made with\n            [0-2377] StaticText: \u2764\n            [0-2378] StaticText: by\n            [0-2379] link: Zyte",
+    "annotations": null
+   }
+  }
+ ],
+ "temperature": null,
+ "schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+   "quotes": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string",
+       "title": "Text"
+      },
+      "author": {
+       "type": "string",
+       "title": "Author"
+      }
+     },
+     "required": [
+      "text",
+      "author"
+     ],
+     "additionalProperties": {},
+     "title": "Quote"
+    },
+    "title": "Quotes"
+   }
+  },
+  "required": [
+   "quotes"
+  ],
+  "additionalProperties": {},
+  "title": "Quotes"
+ }
+}

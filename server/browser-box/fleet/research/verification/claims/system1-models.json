@@ -1,0 +1,126 @@
+{
+ "topic": "System 1 decision models: Jev (TypeSafe), Clef (Cloudflare), OpenAI Decisions, Perplexity Decider",
+ "dossier": "research/dossiers/system1-models.md",
+ "claims": [
+  {
+   "id": "S1-01",
+   "claim": "Jev's real API is POST https://api.typesafe.ai/v1/systemone with {model, state, questions:{id:{type,instructions,criteria}}}; it returns answers keyed by question id, with probabilities rounded to 2 decimals.",
+   "provenance": "hands-on + official-docs",
+   "evidence": "spikes/system1-models/raw/ts1.json (HTTP 200, model jev-1.13.0, probabilities like 1.0/0.0/0.04); https://docs.typesafe.ai/api.md 'POST https://api.typesafe.ai/v1/systemone'",
+   "why_it_matters": "The Gemini endpoint api.typesafe.com/v1/jev/decide is invented. Every skill and the /decide adapter must use this shape."
+  },
+  {
+   "id": "S1-02",
+   "claim": "Jev accepts text input only. Clef, Perplexity Decider and OpenAI Decisions accept images (base64 only).",
+   "provenance": "official-docs",
+   "evidence": "docs.typesafe.ai/models.md: 'Input | Text only... No image, audio, or video input.' Clef schema-input.json images[] maxItems 4. Perplexity quickstart: 'state can carry images... image_url part with a base64 data URL'. OpenAI decisions guide: input_image data URLs.",
+   "why_it_matters": "With Jev, decisions about how the page looks require a serialized DOM or a11y tree. Screenshot-based deciding needs a different provider."
+  },
+  {
+   "id": "S1-03",
+   "claim": "Today's per-account/org rate limits: Jev 100K tokens/s and 80 rps, marked dynamic (scope not stated). Perplexity 10 rps per org on every plan. Clef is probably 300 rpm per model per account (inferred from Workers AI defaults). OpenAI is unconfirmed.",
+   "provenance": "official-docs (Clef inferred)",
+   "evidence": "docs.typesafe.ai/models.md 'Rate limits | 100K tokens per second / 80 requests per second' plus the Warning 'adjusting dynamically'. The 2026-09-17 snapshot said 1,200 rpm. docs.perplexity.ai decisions quickstart: 'Every organization can send 10 requests per second'. developers.cloudflare.com/workers-ai/platform/limits: Text Generation '300 requests per minute, unless the model requires the Workers Paid plan'.",
+   "why_it_matters": "1,000 agents need a central rate limiter, several questions packed into one request per step, and spillover across providers. No single provider is enough at full concurrency."
+  },
+  {
+   "id": "S1-04",
+   "claim": "OpenRouter lists Jev, Clef, Clef-flash, Clef-omni, Decider v1.1 and openai/gpt-6-luna-decisions under output_modalities=decisions (19 models), behind one key. A Jev-shaped body sent unchanged to /api/v1/systemone was answered correctly by Perplexity Decider. Only 1 of the 4 was verified through OpenRouter.",
+   "provenance": "hands-on",
+   "evidence": "curl 'https://openrouter.ai/api/v1/models?output_modalities=decisions' \u2192 19 ids. spikes/system1-models/raw/or1.json: HTTP 200, model perplexity/pplx-decider-v1.1-27b-20261006, provider Perplexity, usage.cost 2e-05, target e7 0.9985.",
+   "why_it_matters": "A single gateway makes a multi-provider decider cheap to build. Untested: Clef, and whether OpenRouter translates the shape for OpenAI's API."
+  },
+  {
+   "id": "S1-05",
+   "claim": "Stagehand v4 caches act/observe/extract results only on Browserbase's servers. The local enableCaching/cacheDir options were removed, so there is no act cache on self-hosted Steel.",
+   "provenance": "source-code + official-docs",
+   "evidence": "stagehand@1fc8849 packages/docs/v4/migrations/v3.mdx:509 ('v4 caches act(), observe(), and extract() results on Browserbase's servers') and :601 ('enableCaching, cacheDir | No equivalent; caching is server-side'). packages/extension/services/cacheService.ts:62-64, buildCacheContext returns undefined when the Browserbase apiKey or sessionId is missing.",
+   "why_it_matters": "It undercuts the brief's premise that Stagehand on Steel is cached. The fleet must build its own replay cache, with the decider as the self-heal tier."
+  },
+  {
+   "id": "S1-06",
+   "claim": "A decider can drive Stagehand with no model call: page.snapshot() returns {formattedTree, xpathMap, urlMap}, and act(Action) with {selector, description, method, arguments} runs takeDeterministicAction without inference.",
+   "provenance": "source-code",
+   "evidence": "stagehand@1fc8849 packages/protocol/schemas.ts:1164 (SnapshotResultSchema). packages/extension/services/actService.ts:104 ('if (typeof actInstruction !== \"string\")' \u2192 takeDeterministicAction). packages/sdk-ts/src/stagehand.ts:233 (act(instruction: Action)).",
+   "why_it_matters": "This is the integration point for System 1 inside Stagehand. The xpath selector string format still needs confirming in a Stagehand spike."
+  },
+  {
+   "id": "S1-07",
+   "claim": "A decider can drive Browser-Use's executor with no agent model call: the dom_state.selector_map index goes to Tools.act or registry.execute_action('click', {index}). The agent's own generative call (get_model_output) must return a full AgentOutput, which a decider cannot produce.",
+   "provenance": "source-code",
+   "evidence": "browser-use@c75e847 browser_use/tools/service.py:2178 (async def act), :2132 (click with ClickElementAction index). tools/registry/service.py:331 (execute_action). agent/service.py:1955 ('response = await self.llm.ainvoke').",
+   "why_it_matters": "It defines whether Browser-Use is used as the executor under a decide loop, or as the open-ended fallback agent."
+  },
+  {
+   "id": "S1-08",
+   "claim": "Every provider caps a choice question at 255 options (Jev, Clef, Perplexity). jev-automation caps candidates at 180 elements.",
+   "provenance": "official-docs + source-code",
+   "evidence": "docs.typesafe.ai/primitives/choice.md 'A Choice question accepts up to 255 options'. Clef schema 'criteria... 2 to 255 options'. Perplexity 'Options per choice | 1 to 255'; decision head shape [255, 5120]. jev-automation core/elements.ts:34 MAX_ELEMENTS = 180 @edcbbae.",
+   "why_it_matters": "Dense social feeds must be pre-filtered or ranked before they are sent to a decider."
+  },
+  {
+   "id": "S1-09",
+   "claim": "OpenAI Decisions uses a different shape: input instead of state, a questions array with name, predicate instead of noul, choices[] and levels[] arrays, answers returned as an array, and a refusal answer type.",
+   "provenance": "official-docs",
+   "evidence": "https://developers.openai.com/api/docs/guides/decisions.md examples: 'questions': [{'type':'predicate','name':'visible_damage',...}], answers[0].type == 'refusal'",
+   "why_it_matters": "The /decide interface needs a shape adapter and a fourth outcome (refused)."
+  },
+  {
+   "id": "S1-10",
+   "claim": "Direct Jev latency today was 139\u2013329 ms (n=3, from a Mac in the US). README: decision 209\u2013424 ms, median ~300 ms (n=20); a whole click step 1.2\u20132.5 s, where page load dominates.",
+   "provenance": "hands-on + source-code",
+   "evidence": "spikes/system1-models/RESULTS.md table (ts1 329.4 ms incl. TLS, ts2 263.6, ts3 138.6). browser-box README.md@4c837a3 'Jev's decision itself took 209\u2013424 ms (median ~300 ms, n=20; one 8.8 s outlier)'.",
+   "why_it_matters": "Decider latency is not the bottleneck; page settling is. Vendor latency comparisons (Cloudflare's 524 ms for Jev) are not what we see."
+  },
+  {
+   "id": "S1-11",
+   "claim": "No published benchmark measures web-element choice for any of the four models. The only browser evidence includes a real Jev miss: 0/3 on 'first search result'.",
+   "provenance": "source-code + official-docs",
+   "evidence": "browser-box README.md@4c837a3 act vs task table: search act 0/3, 'Jev picked Wikipedia's red create this page link'. Benchmark lists on huggingface.co/Cloudflare/clef and the pplx-decider-v1.1 card (NLU, tools, reasoning; no web grounding).",
+   "why_it_matters": "Thresholds and the 90% target must come from our own labeled data, not vendor tables."
+  },
+  {
+   "id": "S1-12",
+   "claim": "Clef and Perplexity Decider have Apache-2.0 open weights, but self-hosting needs GPU-class hardware: Clef was tested on an H200; Decider needs about 49 GiB in BF16 plus custom noncausal attention code, and its self-hosted input limit is 8,192 tokens.",
+   "provenance": "official-docs",
+   "evidence": "huggingface.co/Cloudflare/clef README 'Tested with torch 2.11 and transformers 5.10.2 on a single H200'. huggingface.co/perplexity-ai/pplx-decider-v1.1-27b README 'roughly 49 GiB of weights', 'Default causal inference does not reproduce...', 'prepare's 8,192-token limit'.",
+   "why_it_matters": "Self-hosting as a fix for rate limits or cost means a GPU host, not a DigitalOcean CPU droplet."
+  }
+ ],
+ "gaps": [
+  "The decide loop itself: snapshot \u2192 candidate filter (\u2264180) \u2192 decider \u2192 executor \u2192 verify. Neither Stagehand nor Browser-Use has one; both model hooks expect generative output.",
+  "A replay or action cache that works on self-hosted Steel. Stagehand v4's cache only works on Browserbase. Key it by site + template + DOM signature, with the decider as the self-heal tier.",
+  "A central /decide service: rate limiting per provider and org, packing a step's questions into one request, shape adapters (especially for OpenAI), failover, budgets, and idempotency.",
+  "Per-template thresholds and calibration: labeled sets from public test pages and later client pages, a shadow pilot, reliability curves, and drift alarms on model-version changes.",
+  "A deterministic policy gate for irreversible actions (post, send, DM, delete). Vendors say their risk scores are not safeguards.",
+  "Candidate extraction and description quality: describeElement-style strings, disambiguating repeated labels by their nearest heading, and checking iframe and shadow-DOM coverage.",
+  "A blocker taxonomy plus a human-handoff hook (login wall, checkpoint, CAPTCHA, consent) wired to the live viewer.",
+  "Calibration logging, as structured records plus an Obsidian daily-note rollup per profile.",
+  "Optional: a GPU self-host of Clef or Decider, if rate limits or cost require it."
+ ],
+ "risks": [
+  "Element-picking accuracy on real social and lead-gen pages is unmeasured for every provider; today's tests were easy.",
+  "Rate limits are low and can change: Jev's changed within 3 weeks and is labeled dynamic; Perplexity is 10 rps per org; Clef's is inferred; OpenAI's and OpenRouter's are unconfirmed.",
+  "OpenAI Decisions is in beta and OpenRouter's /api/alpha/decisions is alpha. Their shapes and prices may change.",
+  "OpenRouter's context figures conflict with the vendors' (Jev 32k vs 64k; Clef-flash 16k / 24.5k / 64k). It may route Clef to PrimeIntellect (16k context) unless the provider is pinned, and it is a single point of failure.",
+  "Clef silently truncates long text state, so a candidate list can be cut without any error.",
+  "Page content can steer any decider (prompt injection from comments and posts); a decider is not a safety control.",
+  "Jev rounds probabilities to 2 decimals, and vendor 'confidence' is not a measured success rate. Thresholds do not carry across providers or versions.",
+  "Without Browserbase, Stagehand on Steel has no act cache. That changes the cost and latency assumptions in the Gemini plan.",
+  "A public companion repo has a separate exposure question, tracked privately (details withheld).",
+  "Vendor benchmark tables are self-reported and conflict with each other (Cloudflare reports Jev at 524 ms; we measured about 300 ms)."
+ ],
+ "recommendations": [
+  "Build one /decide service in the System One shape, with direct backends (TypeSafe; later Perplexity and Workers AI) plus OpenRouter as one backend. Add an adapter for OpenAI's shape, and treat 'refusal' as its own outcome.",
+  "Make Jev (jev-1.13.0, pinned) the primary text decider for now. It is the only one with in-house code and measurements (jev-automation decide.ts and verify.ts). Treat Decider v1.1 ($0.02/M, takes screenshots) and Clef-flash (cheapest, fastest per vendor) as the second-family and screenshot tiers.",
+  "Approve a follow-up of about $0.001: run the same request against cloudflare/clef, cloudflare/clef-flash and openai/gpt-6-luna-decisions via OpenRouter, pinning provider=Cloudflare. This checks shape translation and latency.",
+  "Next spike (the evidence gate): a labeled set of 100\u2013200 element-choice and blocker cases from public test pages, in both option orders, across Jev, Decider and Clef-flash. Plot reliability curves and set initial thresholds. Do not carry over Gemini's '>0.85'.",
+  "Integrate with Stagehand through page.snapshot() \u2192 decider \u2192 act(Action), and with Browser-Use through selector_map \u2192 decider \u2192 Tools.act. Keep act(string), observe() and Agent.step as the escalation tier only.",
+  "Build a fleet replay cache, because Stagehand v4's cache only works on Browserbase. Make the decider its self-heal path.",
+  "Gate post, send, DM and delete with deterministic policy (schedule-approved content, quotas, allowlists). Never let a decider be the only gate.",
+  "Pack each step's questions into one request (target + blocker + done + risk) and centralize rate limiting. Budget at roughly 1 call per 2\u20133 s per active profile.",
+  "Report the 90% target per workflow in three buckets (plain code or replay / decider / generator), on successful tasks only, with n and confidence intervals.",
+  "Tell Justin which of his repos are public and to review them."
+ ],
+ "spend_usd": 0.000135
+}

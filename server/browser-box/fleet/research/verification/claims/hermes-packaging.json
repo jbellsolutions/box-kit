@@ -1,0 +1,112 @@
+{
+ "topic": "hermes-packaging: how to package and hand the browser-fleet tool to 1-1,000 Hermes agent profiles in the Jev Workforce",
+ "dossier": "research/dossiers/hermes-packaging.md",
+ "claims": [
+  {
+   "id": "HP-1",
+   "claim": "A remote MCP server entry with headers Authorization: 'Bearer ${BROWSER_FLEET_TOKEN}' resolves the variable from each profile's own .env. Each profile sends only its own token. A profile without the variable fails closed before any request is sent.",
+   "provenance": "hands-on",
+   "evidence": "At 09681e7: RESULTS.md S7, using `hermes -p p1|p2|p3 mcp test browser_fleet` against a loopback stub on port 18931. p1 sent sha8 ab25052b (token A); p2 sent 0977a2e3 (token B); p3 failed with \"${BROWSER_FLEET_TOKEN} in url/headers is not set in this profile's .env or secret source\". Also documented in website/docs/reference/mcp-config-reference.md @46d7718a. SAFE RE-VERIFICATION: never bootstrap a new HERMES_HOME root on this machine. Reproduce in a capped fleet-spike-* container with its own Hermes clone, or verify from the docs path.",
+   "why_it_matters": "This is the per-profile scoped-token mechanism the whole packaging relies on: one shared fleet service, with a token per profile and no repo copy."
+  },
+  {
+   "id": "HP-2",
+   "claim": "skills.external_dirs lets one read-only shared skills directory serve several profiles, and its skills appear in each profile's system-prompt skill index.",
+   "provenance": "hands-on",
+   "evidence": "At 09681e7: RESULTS.md S4. p2 and p4 pointed at a chmod a-w directory; `hermes skills list` and `prompt-size --json` show fleet-router coming from the shared path, and p1 (not configured) does not. Also documented in website/docs/user-guide/features/skills.md (External Skill Directories) @46d7718a, and external_dirs is present in agent/prompt_builder.py @8a92051f. Same safe re-verification note as HP-1.",
+   "why_it_matters": "It is the update channel for skills across 1,000 profiles: one copy per host instead of 1,000 copies."
+  },
+  {
+   "id": "HP-3",
+   "claim": "A same-named skill in a profile's local skills directory silently shadows the shared external skill.",
+   "provenance": "hands-on",
+   "evidence": "At 09681e7: RESULTS.md S5. After creating p2/skills/browser-fleet/fleet-router/SKILL.md, `prompt-size` resolves fleet-router to the local path, with no warning at default log level. Documented precedence: project, then local, then create_dir, then external_dirs (features/skills.md @46d7718a).",
+   "why_it_matters": "Fleet skill releases can be silently overridden per profile. This forces fleet-* naming, read-only dirs and a drift scan."
+  },
+  {
+   "id": "HP-4",
+   "claim": "Plugin-registered skills (ctx.register_skill) appear in the system-prompt <available_skills> index only from upstream commit 19cb1cbfed (2026-10-07). They are absent at 09681e7 and at the Jev trial pin 8a92051f, and the plugin docs at main still say they are not listed.",
+   "provenance": "source-code",
+   "evidence": "agent/prompt_builder.py _plugin_skill_prompt_rows at 46d7718a; `git log -S` shows it introduced in 19cb1cbfed; grep finds nothing at 09681e7 or 8a92051f. Hands-on at 09681e7 (RESULTS.md S6): with the stub plugin enabled, the index lists only hermes-agent and fleet-router.",
+   "why_it_matters": "Fleet guidance must not depend on plugin-bundled skills being discovered; ship skills through external_dirs instead."
+  },
+  {
+   "id": "HP-5",
+   "claim": "In the Jev trial, the only way to plug in a fleet service without code changes is the host's own integrations route (HTTPS-only URL), which writes an MCP server with a Bearer header and timeout 90. Once that connection exists, the authority layer allows every tool of the mcp-<name> toolset, and its reserved-label publish/send gate applies only to its own browser tools.",
+   "provenance": "source-code",
+   "evidence": "A plugin-less host's source at a pinned commit (file and symbol references withheld).",
+   "why_it_matters": "The fleet must enforce draft/publish, rate and spend gates server-side, and design tools for a 90 s client timeout. Plugins and skills cannot reach trial employees."
+  },
+  {
+   "id": "HP-6",
+   "claim": "Hermes Skill Sync (`hermes sync`) was removed from core on 2026-10-03, and profile distributions have no git ref pinning: they shallow-clone the default branch and strip .git.",
+   "provenance": "source-code",
+   "evidence": "Commit 64ad33e32d 'refactor: remove Skill Sync (hermes sync) and the org skill mirror from core' (2026-10-03). hermes_cli/profile_distribution.py @46d7718a (_stage_source shallow-clones, no ref handling). profile-distributions.md @46d7718a: 'Git ref pinning (#v1.2.0) is planned but not in the initial release'.",
+   "why_it_matters": "Skill and profile versioning across 1,000 profiles has to be built by the fleet; the native mechanisms are absent or unpinned."
+  },
+  {
+   "id": "HP-7",
+   "claim": "Managed scope (/etc/hermes/config.yaml) replaces lists wholesale on merge, and expands ${VAR} references only against the process environment, not profile .env files.",
+   "provenance": "source-code",
+   "evidence": "hermes_cli/managed_scope.py apply_managed_overlay docstring ('${VAR} refs in the managed config expand against the PROCESS env only'); hermes_cli/config.py _deep_merge (dict-over-dict recursion, anything else replaced) @46d7718a.",
+   "why_it_matters": "Managed scope cannot pin plugins.enabled without wiping profile lists, and cannot carry per-profile tokens. Per-profile config must be written by the provisioner."
+  },
+  {
+   "id": "HP-8",
+   "claim": "After a session expires, Hermes replays only MCP tools annotated readOnlyHint: true. Unannotated (write) tools return outcome_uncertain. The default MCP tool timeout is 300 s, and trust: untrusted makes every write tool need approval and fail closed in cron or unattended runs.",
+   "provenance": "official-docs",
+   "evidence": "website/docs/reference/mcp-config-reference.md @46d7718a (trust key row; timeout default 300). Not exercised hands-on.",
+   "why_it_matters": "Drives the submit-then-poll job API, idempotency keys, and trust: full with server-side gates."
+  },
+  {
+   "id": "HP-9",
+   "claim": "The identity header (identity_header value_from: profile) is not sent on the HEAD/GET preflight requests, only on the MCP POST/GET/DELETE session traffic. The bearer token is present on all of them.",
+   "provenance": "hands-on",
+   "evidence": "At 09681e7: RESULTS.md S7 server log. HEAD /mcp and GET /mcp carried auth sha8 but x_hermes_profile None; the POSTs carried p1/p2. Same safe re-verification note as HP-1.",
+   "why_it_matters": "The fleet must authenticate and bind by token only, never by the profile-name header."
+  },
+  {
+   "id": "HP-10",
+   "claim": "Creating a fresh HERMES_HOME root is heavyweight: about 1.4 GB of per-root tools, environment and cache at 09681e7. A killed first run can leave an interrupted 'source update' that the next run resumes inside the shared code checkout. A named profile under an existing root costs about 1 s and 3.4 MB, or 184 KB with --no-skills.",
+   "provenance": "hands-on",
+   "evidence": "A scratch-root bootstrap run (details withheld) showed that a scratch HERMES_HOME isolates profile state but not the shared code checkout. Not established whether a clean first run also touches the checkout. Do not re-verify by bootstrapping a new root on a machine with a real Hermes install; use a capped container with its own Hermes clone.",
+   "why_it_matters": "The fleet must use one root with many named profiles, baked images and security.allow_lazy_installs: false, never a root per profile."
+  }
+ ],
+ "gaps": [
+  "Profile-to-browser-identity registry: unique (platform, handle) binding, infra/proxy/fingerprint pinned at creation, health states (ok, needs_login, challenge, cooldown, locked). Hermes has nothing comparable; Camofox managed_persistence is the closest and is Firefox-only.",
+  "Token mint, rotation and revocation, plus a token-to-(installation, profile)-to-identities/scopes binding table and a provisioner CLI. The CLI writes .env and config, validates YAML, runs `hermes mcp test`, and calls the trial's /integrations API for trial employees.",
+  "The fleet MCP server itself: status, run (returns job_id at once), job, cancel, read, login_link, procedures and feedback, plus MCP prompts. Needs readOnlyHint annotations, idempotency keys and a durable job queue.",
+  "Server-side effect gates: draft vs publish vs DM scopes, per-identity daily caps and pacing, per-token spend caps and per-call cost reporting. Neither the trial's authority layer nor Hermes trust tiers cover fleet MCP writes.",
+  "Human login handoff: viewer URL, notification, verification. Hermes declines URL-mode MCP elicitation, so this must be a link in the result plus a gateway message.",
+  "Skill release machinery: immutable release dirs, current/canary symlinks, a min_skill_version check, and a drift scan for local fleet-* shadows and writable release dirs. Skill Sync is removed; distributions cannot pin.",
+  "Obsidian evidence writer: vault layout per profile, a post_tool_call plugin hook for native profiles, an obsidian_note payload for trial employees, and vault sync between DigitalOcean hosts and the owner's workstation. There is no Obsidian memory provider upstream.",
+  "Engine router inside the fleet (Stagehand by default, Browser-Use for exploration). Hermes' own browser stack (agent-browser, Browser Use CLI browser_exec) does not do this.",
+  "Optional thin browser-fleet plugin with no dependencies: evidence hook, /fleet command, cached pre_llm_call notice. An experimental BrowserProvider using get_secret is needed only if native browser_* tools must drive fleet identities.",
+  "Load measurement for about 1,000 profiles on one multiplexed gateway with about 1,000 distinct MCP connections; nothing upstream documents or tests this scale.",
+  "Training SOP text and MCP prompt playbooks for Jev trial employees, who cannot receive Hermes skills or plugins without a code change (not authorized)."
+ ],
+ "risks": [
+  "A scratch HERMES_HOME isolates profile state but not the shared code checkout or the first-run update path. Re-verification must not bootstrap new roots on a machine with a real Hermes install.",
+  "Hermes velocity: about 12,600 upstream commits between the trial pin (Sep 19) and main (Oct 9). Behaviour already differs across the three revisions examined (plugin skills in the index; Skill Sync removed). Anything beyond MCP, skills and documented ctx will break; the trial's registry.dispatch monkeypatch is such a coupling.",
+  "Scale is unmeasured: about 1,000 distinct-token MCP connections from one multiplexer, gateway startup time and RAM, and session DB growth. Mitigate with lazy: true and sharding profiles across hosts, and measure before committing.",
+  "One unparsable profile config.yaml fails plugin dependency preparation for every profile on the install; the provisioner must validate generated config.",
+  "Shared-skill integrity: a local fleet-* copy silently shadows the release (hands-on), and writable external dirs let one agent's skill_manage patch reach all profiles. The system prompt actively tells agents to patch skills.",
+  "Jev trial: authority allows a whole MCP toolset, so the fleet is the only publish/DM gate. Fleet model spend falls outside the trial's $10 ledger. The trial's MCP timeout is 90 s. Phase 2 and migration are not authorized, so the trial can only consume the fleet over HTTPS MCP.",
+  "Dual-identity hazard: one social account logged in from both an employee's in-container Chromium (no proxy) and a fleet identity means two fingerprints and two IPs, a ban risk. Bindings must be exclusive.",
+  "Third-party Hermes browser-provider plugins that read os.environ (for example steel-dev/hermes-steel) get the wrong secret or none for secondary profiles under multiplexing. hermes-steel also creates ephemeral sessions with no persistent identity.",
+  "Unknowns: whether MCP server 'instructions' are ever surfaced (none found); whether requires_toolsets gating works for lazy MCP toolsets; whether no-LLM cron scripts can read the profile's fleet token; the vault sync topology."
+ ],
+ "recommendations": [
+  "Make the fleet MCP server (HTTPS, Streamable HTTP, tools status/run/job/cancel/read/login_link/procedures/feedback) the primary and mandatory integration. Authenticate and bind by per-profile bearer token only, and keep every call short with run, then job, polling.",
+  "Have every profile's config.yaml carry mcp_servers.browser_fleet with Authorization 'Bearer ${BROWSER_FLEET_TOKEN}', timeout 120, lazy: true and trust: full. Put the token in that profile's .env and enforce all effect scopes server-side.",
+  "Set agent.disabled_toolsets: [browser] on fleet-managed profiles. That way no second, unmanaged browser identity touches client accounts and browser_vault_* credential typing is unavailable.",
+  "Ship skills as immutable release dirs under /opt/jev-fleet/skills/releases/<semver>, exposed through a read-only `current` symlink in skills.external_dirs, with a canary symlink. Name them fleet-*, require version: frontmatter, enforce min_skill_version server-side, and run a nightly drift scan.",
+  "Use one Hermes root with named profiles created with --no-skills (prompt about 9.2k vs 14.5k chars). Pin one Hermes commit per host with security.allow_lazy_installs: false and baked images, and re-run the spike checks (plugin doctor and validate, prompt-size, mcp test, external-dir listing) before any Hermes bump.",
+  "Keep the optional browser-fleet plugin dependency-free and pinned with --ref <sha>. Its main job is a post_tool_call hook writing Agents/<profile>/{Daily,Runs,Identities} notes into the profile's Obsidian vault. Put a ready obsidian_note in job results for trial employees, who cannot load plugins.",
+  "For the Jev trial (no code change, no Phase 2): integrate only through the host's integrations route with an HTTPS URL. Deliver guidance via MCP tool descriptions, MCP prompts and owner Training SOPs. Never bind an account that is also connected in the employee's own Chromium.",
+  "Do not rely on Hermes Skill Sync (removed), profile distributions for updates (no ref pin, overwrites SOUL), pip entry-point plugins, managed-scope lists or tokens, or plugin-bundled skill discovery (only from 19cb1cbfed onward).",
+  "Measure a multiplexed gateway with a few hundred profiles holding distinct fleet tokens before planning 1,000 per host. Do it in a capped fleet-spike-* container with its own Hermes clone, never on a machine with a real Hermes install."
+ ],
+ "spend_usd": 0
+}

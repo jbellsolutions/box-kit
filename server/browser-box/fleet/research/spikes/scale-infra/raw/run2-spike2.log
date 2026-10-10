@@ -1,0 +1,19 @@
+[03:08:32] restored slim profile without Singleton* files: 1448 KB
+[03:08:48] D create persist: 200 9.315352s
+[03:08:52] D getstate (restore w/o lock files): {"mode":"getstate","port":"3311","cookie":"fleetspike=persist-1791601466911","localStorage":"ls-ok","restored":true,"ms":3568}
+[03:08:52] D fp (persist launch #1): ke Gecko) Chrome/144.0.0.0 Safari/537.36 Linux x86_64 hc= 16 dm= 8 screen= [800, 600, 24] gl= ANGLE (Intel, Mesa Intel(R) UHD Graphics
+[03:09:22] D after container restart, create persist: 200 10.962924s
+[03:09:26] D getstate after restart: {"mode":"getstate","port":"3311","cookie":"fleetspike=persist-1791601466911","localStorage":"ls-ok","restored":true,"ms":2195}
+[03:09:26] D fp (after container restart): ke Gecko) Chrome/142.0.0.0 Safari/537.36 Linux x86_64 hc= 8 dm= 8 screen= [800, 600, 24] gl= ANGLE (Google, Vulkan 1.3.0 (SwiftShader
+[03:09:33] E create {}: 200 3.057073s
+[03:09:34] E fp #1: ke Gecko) Chrome/145.0.0.0 Safari/537.36 Linux x86_64 hc= 32 dm= 8 screen= [800, 600, 24] gl= ANGLE (AMD, AMD Radeon Graphics (radeons
+[03:09:35] E create persist (forces relaunch): 200 1.347065s
+[03:09:37] E fp #2: ke Gecko) Chrome/145.0.0.0 Safari/537.36 Linux x86_64 hc= 18 dm= 2 screen= [800, 600, 24] gl= Adreno (TM) 732
+[03:09:38] E create with pinned userAgent+dimensions+timezone: 200 1.037072s
+[03:09:39] E fp #3 (pinned UA): ke Gecko) Chrome/152.0.0.0 Safari/537.36 Linux x86_64 hc= 10 dm= 8 screen= [800, 600, 24] gl= ANGLE (Google, Vulkan 1.3.0 (SwiftShader
+[03:09:39] raw: D1={"mode":"fp","port":"3311","fp":{"ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36","platform":"Linux x86_64","hc":16,"dm":8,"lang":["en-US","en"],"screen":[800,600,24],"tz":"America/New_York","webdriver":false,"gl":[0,"ANGLE (Intel, Mesa Intel(R) UHD Graphics 630 (CFL GT2), OpenGL ES 3.2)"]},"ms":437}
+[03:09:39] raw: D2={"mode":"fp","port":"3311","fp":{"ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36","platform":"Linux x86_64","hc":8,"dm":8,"lang":["en-US","en"],"screen":[800,600,24],"tz":"UTC","webdriver":false,"gl":[0,"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"]},"ms":474}
+[03:09:39] raw: E1={"mode":"fp","port":"3312","fp":{"ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36","platform":"Linux x86_64","hc":32,"dm":8,"lang":["en-US","en"],"screen":[800,600,24],"tz":"UTC","webdriver":false,"gl":[0,"ANGLE (AMD, AMD Radeon Graphics (radeonsi renoir ACO), OpenGL ES 3.2)"]},"ms":650}
+[03:09:39] raw: E2={"mode":"fp","port":"3312","fp":{"ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36","platform":"Linux x86_64","hc":18,"dm":2,"lang":["en-US","en"],"screen":[800,600,24],"tz":"America/New_York","webdriver":false,"gl":[0,"Adreno (TM) 732"]},"ms":806}
+[03:09:39] raw: E3={"mode":"fp","port":"3312","fp":{"ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36","platform":"Linux x86_64","hc":10,"dm":8,"lang":["en-US","en"],"screen":[800,600,24],"tz":"America/Chicago","webdriver":false,"gl":["Google Inc. (Google)","ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 16.0.0) (0x0000C0DE)), SwiftShader driver)"]},"ms":869}
+[03:09:39] done

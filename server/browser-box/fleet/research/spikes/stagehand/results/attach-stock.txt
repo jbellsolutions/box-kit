@@ -1,0 +1,15 @@
+{
+  "steelBase": "http://127.0.0.1:3301",
+  "cdpUrl": "ws://127.0.0.1:3301/",
+  "withSessionExt": false,
+  "steps": [
+    {
+      "name": "localBrowser.connect",
+      "ok": false,
+      "ms": 36,
+      "error": "File path cannot be resolved.",
+      "cause": "File path cannot be resolved."
+    }
+  ],
+  "fatal": "File path cannot be resolved."
+}

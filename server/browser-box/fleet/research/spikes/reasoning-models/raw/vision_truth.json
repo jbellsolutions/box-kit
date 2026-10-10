@@ -1,0 +1,26 @@
+{
+ "books": [
+  {
+   "title": "A Light in the Attic",
+   "rating": "Three"
+  },
+  {
+   "title": "Tipping the Velvet",
+   "rating": "One"
+  },
+  {
+   "title": "Soumission",
+   "rating": "One"
+  },
+  {
+   "title": "Sharp Objects",
+   "rating": "Four"
+  }
+ ],
+ "sharp_add_to_basket_bbox": {
+  "x": 1040,
+  "y": 773.109375,
+  "w": 195,
+  "h": 34
+ }
+}

@@ -1,0 +1,1 @@
+{"driver": "browser-use BrowserSession(cdp_url) + get_browser_state_summary x2", "interactive_elements": 28, "isBot": true, "flagged": ["isAutomatedWithCDP"]}

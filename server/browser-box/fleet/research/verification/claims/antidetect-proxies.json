@@ -1,0 +1,98 @@
+{
+ "topic": "Anti-detect browsers, stealth and proxies for 30 \u2192 1,000 persistent client social-media identities (Stagehand / Browser-Use from Hermes, Steel OSS on DigitalOcean)",
+ "dossier": "fleet/research/dossiers/antidetect-proxies.md",
+ "claims": [
+  {
+   "id": "AP-1",
+   "claim": "Stagehand 4.2.0 localBrowser.connect to a browser it did not launch requires three things: (a) the Stagehand Runtime extension loadable from the browser host's filesystem, (b) a CDP URL that resolves identically from inside the browser, because the extension's service worker dials it back, and (c) a kernel exposing Extensions.getExtensions/loadUnpacked over WebSocket. It failed on CloakBrowser Chromium 146 with 'Method not available.' and worked on Debian Chromium 152, even without --enable-unsafe-extension-debugging.",
+   "provenance": "hands-on + source-code + official-docs",
+   "evidence": "raw/v_sh_noshared.json ('File path cannot be resolved.'); raw/v_sh_dabi.json (works after in-container fwd3303 mirror); raw/n_sh_noflag.json (no flag, works); raw/c_sh_dabi.json, raw/c_sh_dabi_flag.json, raw/c_sh_preload.json ('Method not available.'); stagehand@4.2.0 dist/index.mjs L3572-3591 (CDPClient.connect), L3775-3846 (resolveExtension/loadUnpackedExtension), L5243-5258 (connect uses localExtensionDir), dist/extension/service-worker.js browserWebSocketFactory + 'CDP websocket failed to open'; docs corpus site-md/v4/configuration/browser.md L569 'Loading requires a shared filesystem'",
+   "why_it_matters": "The brief assumes Stagehand is the main engine and that any CDP-returning anti-detect browser can be driven. On vendor kernels this is not guaranteed, so the fleet needs a per-kernel Stagehand conformance test and a Browser-Use fallback, and every browser image must carry the extension at a fixed path."
+  },
+  {
+   "id": "AP-2",
+   "claim": "On stock Chromium 152, Stagehand v4 trips deviceandbrowserinfo's isAutomatedWithCDP. Its extension stays resident after stagehand.close() and keeps tripping it on new tabs for a raw CDP client, until Extensions.uninstall or a browser restart. The CDP-loaded extension is not persisted into the profile.",
+   "provenance": "hands-on",
+   "evidence": "raw/v_sh_dabi.json (isAutomatedWithCDP); raw/n_rawctrl.json (clean before); raw/n_rawctrl_after_sh.json (flagged after close); raw/n_rawctrl_after_uninstall.json (clean); raw/r_ext_after_restart.json (extensions [] after restart on same user-data-dir) + raw/r_rawctrl_after_restart.json (clean); extension manifest dist/extension/manifest.json; service-worker.js session.send('Runtime.enable')",
+   "why_it_matters": "It sets the engine-selection and cleanup rules for identity profiles: uninstall the extension or restart after Stagehand, and route the most sensitive surfaces to Browser-Use or a patched kernel until platform impact is measured."
+  },
+  {
+   "id": "AP-3",
+   "claim": "Browser-Use 0.13.11 attached by cdp_url, with navigate plus two get_browser_state_summary calls, did not trip isAutomatedWithCDP on stock Chromium 152 or on CloakBrowser 146. This is measured for attach and state reads only. From source, the default Agent click tool forces coordinate clicks and avoids the actor Page path that sends Runtime.enable. The MCP server's coordinate click and the actor API do send it.",
+   "provenance": "hands-on (attach/state) + source-code (actions)",
+   "evidence": "raw/n_bu.json, raw/n_bu_state.json, raw/c_bu_state.json; raw/v_bu_state.json is the confounded run (Stagehand extension resident); browser-use c75e847 actor/page.py L55-72, browser/session.py L1360-1370 and L2506-2528, browser/watchdogs/default_action_watchdog.py L390-407, tools/service.py L679 (force=True), mcp/server.py L793, browser/session_manager.py L891-899 (Page/Network enable only)",
+   "why_it_matters": "It supports using Browser-Use as the guaranteed engine on anti-detect kernels and sensitive surfaces. It still needs one re-test with real click/type/scroll actions."
+  },
+  {
+   "id": "AP-4",
+   "claim": "OSS Steel regenerates a random fingerprint on every launch and offers no HTTP way to pin it. The sessions controller drops `fingerprint`, and launchMutators run after `fingerprint` and `userAgent` are destructured. The generated fingerprint is internally inconsistent: the UA major is behind the engine, the screen is 800x600 in a 1920x1080 window, the worker WebGL renderer is a hardcoded Windows GTX 1070 D3D11 string unlike the main thread, and the patched functions fail native toString checks.",
+   "provenance": "source-code + hands-on",
+   "evidence": "steel-browser@1131a02 api/src/modules/sessions/sessions.controller.ts L13-60 (no fingerprint), api/src/services/cdp/cdp.service.ts L704-712 (destructure before mutators), L724-792 (generation), L1493-1560 (injection); spikes/antidetect-proxies/fingerprint.decoded.js L506 (GTX 1070 string); raw/runA.json, runB.json, runD.json, runE.json (UA 142/144/143/144 on 152; screen 800x600; worker\u2260main; nativeChecks false; DABI hasInconsistentWorkerValues)",
+   "why_it_matters": "'Same fingerprint every time' cannot come from Steel's built-in stealth. The fleet must disable it (skipFingerprintInjection plus a pinned userAgent equal to the engine major) and own a persona registry, or fork Steel to pass a fingerprint object into startSession."
+  },
+  {
+   "id": "AP-5",
+   "claim": "Stagehand v4 localBrowser.launch rejects authenticated proxies ('Authenticated local browser proxies are not supported yet'). Steel binds per-session proxies through a local proxy-chain forwarder. Browser-Use answers proxy auth via CDP Fetch.authRequired. The recommended fleet pattern is therefore a per-profile, credential-less local forwarder owned by the node agent.",
+   "provenance": "source-code",
+   "evidence": "@browserbasehq/stagehand@4.2.0 dist/index.mjs L4917-4920; steel-browser@1131a02 api/src/utils/proxy.ts L16-50 and services/session.service.ts L212-220; browser-use c75e847 browser/session.py L2049-2160",
+   "why_it_matters": "It decides where proxy credentials live (the node agent, never the browser, engine or Hermes profile) and how one dedicated IP is bound per profile across every engine."
+  },
+  {
+   "id": "AP-6",
+   "claim": "Undetectable and Incogniton offer only Windows and macOS builds, so they cannot run on DigitalOcean Linux droplets. Kameleo (official Linux Docker image, amd64), Multilogin X (Ubuntu agent under Xvfb) and AdsPower (Ubuntu Desktop 22.04+) document Linux operation with a CDP start path.",
+   "provenance": "vendor-claim / official-docs",
+   "evidence": "https://undetectable.io/pricing (downloads 'Windows' and 'macOS' only); https://incogniton.com/download-incogniton/ (FAQ: 'compatible with Windows and Mac'); https://developer.kameleo.io/integrations/docker/; https://multiloginx.helpjuice.com/en_US/getting-started-with-multilogin-x-automation/linux-agent-autolaunch; https://www.adspower.com/download",
+   "why_it_matters": "It narrows the vendor shortlist for a DigitalOcean-hosted fleet."
+  },
+  {
+   "id": "AP-7",
+   "claim": "NetNut's domains were seized by the FBI on 2026-07-02 over links to the Popa botnet, and its pool was widely resold or white-labelled. netnut.io/pricing now shows the seizure banner.",
+   "provenance": "third-party + hands-on fetch",
+   "evidence": "https://krebsonsecurity.com/?o=10593; https://www.neowin.net/amp/fbi-seizes-netnut-domain-with-googles-help-after-links-found-to-popa-botnet/; WebFetch of https://netnut.io/pricing/ on 2026-10-10 returned 'Seized by the Federal Bureau of Investigation'",
+   "why_it_matters": "Proxy provenance is a legal and reputational risk for client accounts. Provider vetting must be a fleet requirement."
+  },
+  {
+   "id": "AP-8",
+   "claim": "A source-patched Chromium (CloakBrowser free v146) gave a seed-stable fingerprint across restarts: identical canvas hash, GPU and CreepJS FP ID for the same seed, and a different persona for a different seed. Workers matched the main thread, toString checks were native, and Playwright's isAutomatedWithCDP was hidden. Vanilla headful Chromium on a GPU-less host has no WebGL, or SwiftShader when it is forced.",
+   "provenance": "hands-on",
+   "evidence": "raw/cloak1.json vs raw/cloak2.json (FP ID 8f814486976f22a5 both); raw/cloak3.json (seed 77777, FP ID f626bf75f0debf3b); raw/c_pw.json (isBot false) vs raw/v_pw.json (isBot true); raw/n_fp_creep.json (gl err: no context); raw/n_fp_swiftshader.json (SwiftShader renderer)",
+   "why_it_matters": "These are the two OSS ways to get a pinned fingerprint, an honest persona or a patched persona, plus the GPU tell that the buy/build decision hinges on."
+  }
+ ],
+ "gaps": [
+  "Persona registry: pin UA/UA-CH, platform, screen/DPR, GPU strategy, fonts, timezone, locale/languages and hardwareConcurrency/deviceMemory at profile creation, and never regenerate. Steel offers no HTTP pin, and its generator is random per launch and inconsistent.",
+  "Persona application at launch: native flags plus process TZ, --lang and window size; headful Xvfb+dbus entrypoint; a WebGL strategy for GPU-less droplets (SwiftShader or a patched kernel, never 'no WebGL'). Steel's stock image cannot run headful and passes --disable-gpu.",
+  "Fingerprint drift detection: probe UA, TZ, screen, WebGL and canvas on wake and compare against the registry.",
+  "Proxy inventory: one dedicated static ISP IP per profile, a credential vault, a per-profile local credential-less forwarder in the node agent, an IP-echo check before every wake, IP-drift incident handling, and provider-provenance vetting.",
+  "Stagehand packaging: bake the Stagehand Runtime extension into every browser image at a fixed path and set STAGEHAND_EXTENSION_DIRECTORY_PATH; make CDP URLs identical inside and outside the browser host; uninstall the extension after each Stagehand session; run a per-kernel Stagehand attach conformance test.",
+  "Engine router rule: Browser-Use is the fallback whenever Stagehand cannot attach (older or vendor kernels), and the preferred engine for the most detection-sensitive surfaces until measured otherwise.",
+  "Vendor adapter, if a commercial anti-detect browser is bought: start/stop through the vendor API so profiles sync; map vendor profiles to fleet profiles; translate proxy and persona settings; respect API rate limits (Multilogin 100 RPM, Octo 50-200 RPM, AdsPower 2-5 req/s, Kameleo concurrency caps).",
+  "Profile lease service: one writer per profile; a human lease preempts the agent; the agent resumes only after the lease ends.",
+  "Scheduler-level cadence and volume caps per platform and action, active-hours windows in the persona's timezone, cool-downs after any challenge, and checkpoint detectors that pause the profile and page a human.",
+  "Engine extension hygiene: disable Browser-Use's default extensions (uBlock, cookie-banner, ClearURLs) for identity profiles, and never install sales or automation extensions in client profiles.",
+  "Canary cohort and health telemetry to settle the honest-vs-patched persona question with platform data, which no public test page can provide."
+ ],
+ "risks": [
+  "Platform ToS is the highest risk. X bans scripting its website. LinkedIn bans bots, automation add-ons, and using another's account via shared credentials or copied cookies. Meta bans automated access without permission, and password sharing. Browser agents on personal client profiles carry suspension risk no fingerprint fixes.",
+  "No platform measurement. All stealth results are from public test pages (DABI, CreepJS, sannysoft), which do not show what Meta, TikTok, X or LinkedIn accept.",
+  "Stagehand v4 on vendor anti-detect kernels is unverified for every vendor and failed on CloakBrowser 146. The docs and measurements disagree on whether --enable-unsafe-extension-debugging is required.",
+  "Stagehand's CDP footprint (isAutomatedWithCDP, resident extension) has unknown weight at the platforms. Browser-Use is clean for attach and state reads, but its click/type/scroll actions were not measured.",
+  "Proxy provenance: NetNut was seized over a botnet, and resold pools may be tainted. ISP pools have provenance questions.",
+  "Supply chain: CloakBrowser and every commercial kernel are closed binaries holding client sessions. CloakBrowser's site names no legal entity, and only checksums (not signatures) were verified.",
+  "Vendor-cloud custody: cloud-synced profiles (GoLogin, Multilogin cloud, DICloak remote auth) put client cookies on vendor servers.",
+  "Engine and persona upgrades: a pinned UA that lags the engine becomes an inconsistency (Steel's 142-on-152). CloakBrowser warns that seed\u2192persona mappings change across major versions. Upgrades must be controlled persona migrations.",
+  "Honest Linux/SwiftShader personas look server-like. Their weight at the platforms is unknown, and it is the key uncertainty behind buy vs build.",
+  "Pricing volatility and opacity: AdsPower prices are third-party only, DICloak and MoreLogin hide profile counts, and Kameleo charges per concurrent browser.",
+  "Test-host artifacts: the tests ran on arm64 Docker, so the uad.architecture and GPU strings differ from x86 droplets. Re-probe on a droplet before pinning values."
+ ],
+ "recommendations": [
+  "For the orchestrator: this conflicts with the brief's premise that Stagehand is the main engine. On vendor anti-detect kernels Stagehand v4 is not guaranteed to attach, and on stock Chromium it is the more CDP-detectable engine. Make Browser-Use the guaranteed engine for anti-detect or sensitive profiles, gate Stagehand behind a per-kernel attach test, and uninstall Stagehand's extension (or restart) after every Stagehand session.",
+  "Do not use Steel's built-in fingerprint injection for identities. Send skipFingerprintInjection:true, a pinned userAgent equal to the engine's major version, a pinned timezone and dimensions, headless:false, and proxyUrl pointing at the node's local forwarder. Alternatively, fork Steel so startSession receives a persisted fingerprint object.",
+  "Start OSS-first: a persistent profile, one dedicated static ISP IP (about $2.5-3.3/IP-month from a vetted provider), timezone and locale set natively, headful Chromium with an explicit WebGL strategy, a lease service and scheduler cadence caps. Do not buy an anti-detect licence up front.",
+  "Settle buy vs build with a small canary cohort of consenting client accounts. Compare the honest Linux persona, a patched persona (CloakBrowser Pro or a vendor), and a Linux-capable commercial vendor on checkpoint and restriction rates. If a commercial vendor is needed, shortlist Kameleo (Docker, priced by concurrency), Multilogin X (Ubuntu agent, $40/$185) and AdsPower or Octo (flags accepted at start). Only shortlist those that pass the Stagehand attach test.",
+  "Bind proxies through a per-profile, credential-less local forwarder in the node agent for every engine (Stagehand cannot take proxy credentials). Run an IP-echo check before every wake and treat IP drift as an incident.",
+  "Prefer sanctioned delegation and official APIs for client accounts (Meta Business roles, LinkedIn Page admins, X delegate access, TikTok Business Center). Use browser agents only for what APIs cannot do, with written client consent.",
+  "Re-run the DABI and CreepJS probes on an x86 DigitalOcean droplet, and run one Browser-Use test with real click/type/scroll actions, before pinning persona values or finalising engine routing."
+ ],
+ "spend_usd": 0
+}

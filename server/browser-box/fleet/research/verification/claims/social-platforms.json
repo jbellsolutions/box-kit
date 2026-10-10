@@ -1,0 +1,129 @@
+{
+ "topic": "Social platforms (Facebook, Instagram, TikTok, X, LinkedIn) for client accounts: API vs browser, rules, red lines, lead generation",
+ "dossier": "fleet/research/dossiers/social-platforms.md",
+ "claims": [
+  {
+   "id": "SP-1",
+   "claim": "X prohibits browser automation outright, on pain of permanent suspension; the fleet must not drive x.com with an agent.",
+   "provenance": "official-docs",
+   "evidence": "docs.x.com/developer-guidelines.md: \"**Non-API automation (scraping, browser automation) results in permanent suspension.** Always use the official X API.\" help.x.com x-automation (Updated April 2026, dateModified 2026-09-28): \"Use non-API-based forms of automation, such as scripting the X website. The use of these techniques may result in the permanent suspension of your account.\" Files: $S/x/developer-guidelines.md, $S/docs/x_automation_wb.txt",
+   "why_it_matters": "It removes X from the browser-agent scope entirely. X work becomes an API connector with paid credits."
+  },
+  {
+   "id": "SP-2",
+   "claim": "Meta's terms forbid automated access even while logged in, and forbid circumventing its technical measures.",
+   "provenance": "official-docs",
+   "evidence": "facebook.com/legal/terms \u00a73.2 (Wayback 20261010002416, $S/wbk/fb_terms.txt): \"You may not access or collect data from our Products using automated means (without our prior permission) ... regardless of whether such automated access or collection is undertaken while logged-in to a Facebook account.\" Also: \"You may not do, or attempt to do, anything to circumvent, bypass, or override any technological measures that Meta uses to control or limit access\".",
+   "why_it_matters": "Browser agents on Facebook and Instagram client accounts are ToS violations. Stealth and anti-detect aimed at Meta adds a separate violation. This drives API-first."
+  },
+  {
+   "id": "SP-3",
+   "claim": "X per-app ceilings: POST /2/tweets 10,000 per 24 h per app; DM create 1,440 per 24 h per app, shared by all clients.",
+   "provenance": "official-docs",
+   "evidence": "docs.x.com/x-api/fundamentals/rate-limits.md: \"| POST | `/2/tweets` | 10,000/24hrs | 100/15min |\" and \"| POST | `/2/dm_conversations/with/:participant_id/messages` | 1,440/24hrs | 15/15min, 1,440/24hrs |\". File: $S/x/x-api_fundamentals_rate-limits.md",
+   "why_it_matters": "The whole fleet's X throughput on one app is capped. This shapes the governor design and whether Enterprise is needed at 1,000 accounts."
+  },
+  {
+   "id": "SP-4",
+   "claim": "X is pay-per-use with no subscriptions: a post costs $0.015, a post with a URL $0.200, a DM $0.015. Owned Reads at $0.001 apply only to the app owner's account.",
+   "provenance": "official-docs",
+   "evidence": "docs.x.com/x-api/getting-started/pricing.md: \"The X API uses **pay-per-usage** pricing. No subscriptions\"; \"| **Post: Create** | $0.015 per request |\", \"| **Post: Create (with URL)** | $0.200 per request |\", \"| **DM Interaction: Create** | $0.015 per request |\"; Owned Reads apply \"when `{id}` matches the authenticated user and that user is the owner of the developer app\". File: $S/x/x-api_getting-started_pricing.md",
+   "why_it_matters": "It sets the per-client X cost model; for example, 1,000 accounts x 3 link posts a day is about $600/day."
+  },
+  {
+   "id": "SP-5",
+   "claim": "Instagram content publishing is professional-accounts-only, with 100 API-published posts per 24 h per account.",
+   "provenance": "official-docs",
+   "evidence": "developers.facebook.com/docs/instagram-platform/content-publishing: \"Instagram accounts are limited to 100 API-published posts within a 24-hour moving period. Carousels count as a single post.\" The carousel section of the same page still says 50, a stale inconsistency. Overview: \"access data for Instagram professional accounts, including business and creator accounts\". File: $S/meta/https_developers_facebook_com_docs_instagram_platform_content_publishing.txt",
+   "why_it_matters": "It sets the per-account publishing cap, and it means Instagram personal accounts must be converted or handled by a human."
+  },
+  {
+   "id": "SP-6",
+   "claim": "TikTok's Content Posting API audit rejects agency upload tools, so the fleet must use the TikTok API for Business (Accounts API). That API caps publishing at 15 posts per day per account.",
+   "provenance": "official-docs",
+   "evidence": "developers.tiktok.com/doc/content-sharing-guidelines: \"Not acceptable: A utility tool to help upload contents to the account(s) you or your team manages.\" Unaudited clients: \"SELF_ONLY\" and \"up to 5 users to post in a 24 hour window\". business-api.tiktok.com docs id 1762228496095234: \"six video posts per minute with an upper limit of 15 per day\". Accounts API form required since 2026-03-20 (id 1776983576127490). Files: $S/tt/, $S/render/ttnode_*.txt",
+   "why_it_matters": "It picks the TikTok integration path and an approval gate that is a milestone dependency."
+  },
+  {
+   "id": "SP-7",
+   "claim": "The Facebook Groups API was removed for all versions on 2024-04-22. Group posting is browser-only and ToS-exposed.",
+   "provenance": "official-docs",
+   "evidence": "developers.facebook.com/docs/graph-api/changelog/version19.0: \"Groups API \u2014 Applies to v19.0. Will apply to all versions April 22, 2024. Deprecated ... publish_to_groups, groups_access_member_info, Groups API ... will be removed April 22, 2024.\" /docs/groups-api now redirects to the docs root. File: $S/meta/https_developers_facebook_com_docs_graph_api_changelog_version19_0.txt",
+   "why_it_matters": "It defines one of the few genuine browser-only tasks, which therefore needs a human per action."
+  },
+  {
+   "id": "SP-8",
+   "claim": "LinkedIn messaging cannot be automated even through the partner API: each message must follow a specific member action.",
+   "provenance": "official-docs",
+   "evidence": "learn.microsoft.com/en-us/linkedin/shared/integrations/communications/messages: \"Usage of this API is restricted to approved partners\"; \"A message must be associated with a specific member action. Member actions do not include an automated or scheduled event.\" LinkedIn help a1341387 (Wayback 20261002024940): \"we don't permit the use of any third party software ... that scrape, modify the appearance of, or automate activity on LinkedIn's website ... risk having their accounts restricted or shut down.\"",
+   "why_it_matters": "LinkedIn outreach can only be agent-drafted and human-sent. This bounds what the fleet can promise clients."
+  },
+  {
+   "id": "SP-9",
+   "claim": "Meta documents the basis for checkpoints: it may request additional information for scripted or automated use, compromised accounts and prolonged dormancy.",
+   "provenance": "official-docs",
+   "evidence": "Meta Community Standards (Open Terms Archive pga-versions 7f527330, 2026-09-24): \"we may request additional information about an account to ascertain ownership and/or permissible activity: Compromised accounts; Creating or using an account or other entity through automated means, such as scripting (unless the scripting activity occurs through authorized routes ...); Empty accounts with prolonged dormancy\". File: $S/docs/ota_Facebook_Community_Guidelines.md line ~3521",
+   "why_it_matters": "It explains which fleet behaviours provoke checkpoints, including dormancy, and supports the API route as the \"authorized route\"."
+  },
+  {
+   "id": "SP-10",
+   "claim": "Meta, TikTok and X messaging APIs only let a business reply to people who messaged first, inside windows. No platform permits cold or outbound DMs by automation.",
+   "provenance": "official-docs",
+   "evidence": "IG messaging doc: \"Only after an Instagram user has sent your app user's Instagram professional account a message can your app send a message\" (24 h; human_agent 7 d). TikTok BM: \"You are prohibited from initiating a conversation\". X automation rules: \"You may not send unsolicited Direct Messages in a bulk or automated manner\"; automated DMs are allowed only after the recipient \"requested or ... clearly indicated an intent\".",
+   "why_it_matters": "It scopes the product's messaging to inbound replies and removes outbound DM campaigns from the design."
+  },
+  {
+   "id": "SP-11",
+   "claim": "Platform APIs cannot be used to build lead databases: Meta bars building or augmenting user profiles without consent, and X bars profiling without consent.",
+   "provenance": "official-docs",
+   "evidence": "developers.facebook.com/terms/dfc_platform_terms \u00a73.a.v: \"Processing Platform Data without valid User consent in order to build or augment user profiles for any purpose.\" docs.x.com/developer-guidelines.md prohibited activities: \"**Surveillance** | Profiling, tracking, or monitoring users without consent\".",
+   "why_it_matters": "It confines lead generation to the open web, which reinforces the no-paid-enrichment, own-browser cascade."
+  },
+  {
+   "id": "SP-12",
+   "claim": "For tier-0 lead fetches, escalation to a browser must be keyed on the extraction goal being unmet, not on page-shape heuristics.",
+   "provenance": "hands-on",
+   "evidence": "spikes/social-platforms/RESULTS.md (2026-10-10, $0): v1 heuristic (text<400 and scripts>=3) missed quotes.toscrape.com/js/ (65 chars, 2 scripts). v2 (text<400 and scripts>=1) flagged example.com. The goal-based --expect check was correct on both quote pages. Fetch times 70-344 ms.",
+   "why_it_matters": "It sets the router rule for the HTTP, then Stagehand, then Browser-Use cascade, and avoids needless browser spend."
+  }
+ ],
+ "gaps": [
+  "Platform connector layer (Meta Graph: Pages, IG, Messenger; TikTok API for Business: Accounts and Business Messaging; X v2 and X Chat; LinkedIn CM API and Share). Stagehand, Browser-Use and Steel provide nothing platform-specific.",
+  "App approvals as milestone dependencies: Meta Business Verification, App Review and Advanced Access; TikTok Accounts API form, app approval, DSPR and USDS; X developer account, credits and spending limit; LinkedIn CM API Development then Standard tier; optional X written approval for an AI reply bot.",
+  "Encrypted OAuth token vault per identity per platform, with a refresh scheduler (IG 60 d, TikTok 1 d / 365 d) and a re-consent flow through the live viewer.",
+  "Webhook receiver (Meta, TikTok, X Activity API) and a per-conversation messaging-window tracker (24 h / 7 d / 48 h rules).",
+  "Central rate and cost governor: per-account caps (IG 100/24 h, FB Reels 30/24 h, TikTok 15/day, X 100/15 min, LinkedIn 150/day), per-app caps (X 10,000 posts and 1,440 DMs per 24 h), an X spend meter per client, and a run-at-50% policy.",
+  "Policy engine with red lines in code: duplicate-content detector across all client accounts, opt-in/opt-out ledger, per-action express-consent ledger (X), trending-topic guard, no-like/no-follow automation.",
+  "Human approval queue with campaign manifests, first-post gates, and human-send for LinkedIn messages (adapt an older local tool's publishing-safety taxonomy).",
+  "Receipts through API reads instead of browser checks.",
+  "Checkpoint detector and pause-and-page flow with a live-viewer link and cool-down.",
+  "Media hosting on verified public URLs: Meta cURLs media; TikTok requires verified URL properties.",
+  "Lead-gen tier-0 fetcher with robots.txt, per-domain politeness and goal-based escalation, plus an Obsidian provenance store.",
+  "A small set of browser-only playbooks (Facebook Group post, TikTok story) with HITL and hard caps."
+ ],
+ "risks": [
+  "The client expectation of agents \"messaging people\" conflicts with platform rules: cold DMs and engagement automation are prohibited everywhere, and the contract must say so.",
+  "Approval risk: Meta App Review, TikTok Accounts API and data-security reviews, and LinkedIn vetting are discretionary, and refusal or stall blocks a platform. Approval odds for an agency use case are unknown.",
+  "X economics: $0.20 per link post, and per-app ceilings of 10,000 posts and 1,440 DMs per 24 h cap the whole fleet on one app. Splitting into many apps may count as circumventing rate limits.",
+  "Browser-only features remain ToS-exposed even with human approval; only a human doing the action is clean.",
+  "No official checkpoint thresholds exist; all cadence numbers are folklore, so the fleet must log its own checkpoint telemetry from day one.",
+  "Unverified: whether X counts human-approved, API-scheduled brand posting as an \"automated account\" needing the label; whether legacy X dm_events covers encrypted X Chat conversations; IG/TikTok UI-only features (stickers, music); whether API activity counts against Meta's \"prolonged dormancy\" checkpoint.",
+  "Meta Standard Access for \"accounts you manage\" may not hold at agency scale; plan for Advanced Access.",
+  "LinkedIn Marketing version 202510 sunsets 2026-10-15, so an integration must pin a current version header.",
+  "Composio social toolkits (endorsed in Justin's directives) were not researched: whose app review they use and how they handle per-app caps.",
+  "Legal: GDPR/CCPA treatment of lead data and agency liability for client account loss were not researched."
+ ],
+ "recommendations": [
+  "Make social work API-first. Build one connector service per platform behind the fleet's job API (submit then poll), and route every social write through it. Use the browser only for human login and checkpoints, open-web lead generation, and the HITL no-API set.",
+  "Start the approval milestones first, because they gate everything else: Meta Business Verification and App Review, TikTok Accounts API form, X developer account with a spending limit, and LinkedIn CM API Development tier. Use one app per platform owned by Justin's business.",
+  "Treat X as API-only: never open x.com in an agent-driven browser. Budget X per client and track the per-app 10,000 posts and 1,440 DMs per 24 h ceilings.",
+  "Enforce the red-line list in code, not in prompts: no outbound DMs, no likes or follows automation, no cross-account duplicate content, no AI replies on X without approval, no platform scraping, no anti-detect against Meta access controls.",
+  "Scope client offerings to publishing, comment moderation, inbound DM replies within windows, analytics, and HITL drafts for LinkedIn outreach. Put platform-risk language in client contracts.",
+  "Convert client Instagram personal accounts to professional during onboarding so they become API-manageable. Avoid operating Facebook personal profiles.",
+  "Size the browser fleet for lead generation and HITL only. Most profiles need no always-on browser for social work, so revisit the scale-infra RAM and proxy budget.",
+  "Keep-warm: refresh API tokens on schedule. For browser identities, run at most a weekly read-only login probe in the client's daytime (Meta, TikTok, LinkedIn only) and page a human on any logout or challenge.",
+  "Lead generation: tier-0 stdlib fetch with robots.txt first, then Stagehand extract on known pages, then Browser-Use exploration. Escalate on goal-unmet, store provenance in Obsidian, and keep platform data out of lead records.",
+  "Instrument checkpoint telemetry per identity per platform from the first live account, so the fleet's own numbers replace folklore."
+ ],
+ "spend_usd": 0
+}

@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-10T07:41:12.471Z",
+  "rssBaselineMB": 98,
+  "rssAfterAttachMB": 97,
+  "snapshotMs": 1333,
+  "snapshotChars": 21553,
+  "snapshotApproxTokens": 5388,
+  "rssAfterSnapshotMB": 98,
+  "extensionServiceWorkerHeapMB": {
+    "used": 25,
+    "total": 34
+  },
+  "secondInstance": "rejected: A Stagehand instance is already initialized",
+  "afterCloseNewInstance": "attached"
+}

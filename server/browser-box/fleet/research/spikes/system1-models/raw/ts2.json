@@ -1,0 +1,83 @@
+{
+  "url": "https://api.typesafe.ai/v1/systemone",
+  "status": 200,
+  "wall_ms": 263.6,
+  "http_version": "HTTP/1.1",
+  "response_headers": {
+    "server": "cloudflare",
+    "cf-ray": "a48255beed4c5c5f-XXX"
+  },
+  "request_body": {
+    "model": "jev-1.13.0",
+    "state": {
+      "command": "Find more quotes beyond the ones shown on this page",
+      "page": {
+        "url": "https://quotes.toscrape.com/login",
+        "title": "Quotes to Scrape",
+        "text_excerpt": "Quotes to Scrape. Login. Username Password Login",
+        "fields": [
+          "textbox \"username\"",
+          "password field \"password\"",
+          "button \"Login\""
+        ]
+      }
+    },
+    "questions": {
+      "login_wall": {
+        "type": "noul",
+        "instructions": "Is a sign-in or login form the main thing on this page, so the user must log in before they can continue?",
+        "criteria": {
+          "true": "The page mainly asks for a username/email and password, or says to sign in to continue",
+          "false": "The page shows its normal content; any sign-in link is just one link among many"
+        }
+      },
+      "blocker": {
+        "type": "choice",
+        "instructions": {
+          "question": "What, if anything, on this page is in the way of the goal?",
+          "goal": "Find more quotes beyond the ones shown on this page"
+        },
+        "criteria": {
+          "none": "Nothing is in the way",
+          "consent_dialog": "A cookie or privacy consent dialog",
+          "login_wall": "A sign-in or account prompt",
+          "captcha": "A captcha or robot check",
+          "error_page": "An error, not found, or cannot-reach page",
+          "no_results": "A search or list that says it found nothing",
+          "popup": "A newsletter, app-install or other overlay",
+          "permission_prompt": "A request for a permission such as location, notifications or camera",
+          "no_change": "The page did not change at all"
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "login_wall": {
+        "type": "noul",
+        "noul": 0.95
+      },
+      "blocker": {
+        "type": "choice",
+        "choice": "login_wall",
+        "confidence": 0.98,
+        "probabilities": {
+          "none": 0.02,
+          "consent_dialog": 0.0,
+          "login_wall": 0.98,
+          "captcha": 0.0,
+          "error_page": 0.0,
+          "no_results": 0.0,
+          "popup": 0.0,
+          "permission_prompt": 0.0,
+          "no_change": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 668,
+      "output_tokens": 106
+    }
+  }
+}

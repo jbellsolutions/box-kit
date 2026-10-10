@@ -1,0 +1,13 @@
+{
+ "model": "deepseek/deepseek-v4.1-flash",
+ "mode": "or-off",
+ "task": "Go to https://quotes.toscrape.com/ , use the Next button to go to page 3, and report the author of the first quote on page 3.",
+ "wall_s": 95.3,
+ "steps": 6,
+ "final": "The author of the first quote on page 3 is Pablo Neruda. The quote is: 'I love you without knowing how, or when, or from where...'",
+ "done": true,
+ "errors": [
+  "Navigation failed: Event handler browser_use.browser.watchdog_base.BrowserSession.on_NavigateToUrlEvent#1232(?\u25b6 NavigateToUrlEvent#23af \ud83c\udfc3) timed out after 30.0s and interrupted any processing of 1 child events",
+  "Navigation failed: Event handler browser_use.browser.watchdog_base.BrowserSession.on_NavigateToUrlEvent#1232(?\u25b6 NavigateToUrlEvent#360b \ud83c\udfc3) timed out after 30.0s and interrupted any processing of 1 child events"
+ ]
+}

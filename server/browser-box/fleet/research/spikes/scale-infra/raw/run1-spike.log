@@ -1,0 +1,47 @@
+[03:04:00] image: sha256:7a161b95e8a9b20ddc2f87d380c61636bb13507f7fe99fd4704cb105c5478f99 2026-09-16T19:43:30.85965784Z
+[03:04:00] host: arch=aarch64 Docker
+[03:04:05] fleet-spike-scale-a healthy after 3.1 s; idle mem: 407.2MiB / 1.5GiB cpu=123.55%
+[03:04:05] --- fingerprint stability: two plain launches in the same container
+[03:04:06] create#1: 200 1.742744 {"id":"4074f532-989f-4093-9108-aa155d86ec10","createdAt":"2026-10-10T03:04:05.108Z","status":"live","duration":0,"eventCount":0,"timeout":0,"creditsUsed":0,"websocketUrl":"ws://localhost:3311/","debugUrl":"http://localhost:3311/v1/sessions/debug","debuggerUrl":"http://localhost:3311/v1/devtools/insp
+[03:04:08] fp#1: {"mode":"fp","port":"3311","fp":{"ua":"Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","platform":"Linux x86_64","hc":144,"dm":8,"lang":["en-US","en"],"screen":[800,600,24],"tz":"America/New_York","webdriver":false,"gl":[0,"ANGLE (Intel, Mesa Intel(R) UHD Graphics 630 (CFL GT2), OpenGL 4.6)"]},"ms":1099}
+[03:04:08] create#2: 200 0.278620 {"id":"f0a5d462-9450-4d61-a906-57f511aefd09","createdAt":"2026-10-10T03:04:08.400Z","status":"live","duration":0,"eventCount":0,"timeout":0,"creditsUsed":0,"websocketUrl":"ws://localhost:3311/","debugUrl":"http://localhost:3311/v1/sessions/debug","debuggerUrl":"http://localhost:3311/v1/devtools/insp
+[03:04:09] fp#2: {"mode":"fp","port":"3311","fp":{"ua":"Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","platform":"Linux x86_64","hc":144,"dm":8,"lang":["en-US","en"],"screen":[800,600,24],"tz":"America/New_York","webdriver":false,"gl":[0,"ANGLE (Intel, Mesa Intel(R) UHD Graphics 630 (CFL GT2), OpenGL 4.6)"]},"ms":271}
+[03:04:10] mem after 2 launches + 1 page: 641.9MiB / 1.5GiB cpu=20.34%
+[03:04:10] --- browser-box's Cloud-style fields (persistProfile/profileId) against OSS
+[03:04:10] create: 200 0.327043 {"id":"025e14b8-8ee6-4fd9-b3ce-8a63602a50a7","createdAt":"2026-10-10T03:04:10.375Z","status":"live","duration":0,"eventCount":0,"timeout":0,"creditsUsed":0,"websocketUrl":"ws://localhost:3311/","debugUrl":"http://localhost:3311/v1/sessions/debug","debuggerUrl":"http://localhost:3311/v1/devtools/insp
+[03:04:11] set: {"mode":"setstate","port":"3311","cookie":"fleetspike=persist-1791601451423","ms":270}
+[03:04:14] release: 200 2.968079 {"id":"025e14b8-8ee6-4fd9-b3ce-8a63602a50a7","createdAt":"2026-10-1
+[03:04:16] mounted dir after persistProfile session: 0 KB, entries=0
+[03:04:16] /tmp/steel-chrome in container: 2688	/tmp/steel-chrome
+[03:04:16] --- userDataDir:/tmp/custom-udd (expect: ignored, fixed path used instead)
+[03:04:19] create: 200 2.510546 {"id":"c77729d0-a804-4869-abdf-31c8e3374751","createdAt":"2026-10-10T03:04:16.725Z","status":"live","duration":0,"eventCount":0,"timeout":0,"creditsUsed":0,"websocketUrl":"ws://localhost:3311/","debugUrl":"http://localhost:3311/v1/sessions/debug","debuggerUrl":"http://localhost:3311/v1/devtools/insp
+[03:04:20] /tmp/custom-udd exists? no; mounted dir entries=12
+[03:04:21] release: 200 1.093676 {"id":"c77729d0-a804-4869-abdf-31c8e3374751","createdAt":"2026-10-1
+[03:04:23] --- persist:true, set state, browse with memory sampling, export context, release
+[03:04:26] session 3bd12573-cabe-4292-aa20-6c0e5cf1813e; mem: 578.2MiB / 1.5GiB cpu=68.70%
+[03:04:26] set: {"mode":"setstate","port":"3311","cookie":"fleetspike=persist-1791601466911","ms":404}
+[03:05:36] browse: {"mode":"browse","port":"3311","pages":[{"u":"https://quotes.toscrape.com/","ms":1211},{"u":"https://quotes.toscrape.com/page/2/","ms":248},{"u":"https://books.toscrape.com/","ms":1817},{"u":"https://books.toscrape.com/catalogue/category/books/poetry_23/index.html","ms":1383},{"u":"https://the-internet.herokuapp.com/","ms":30896},{"u":"https://the-internet.herokuapp.com/dynamic_loading/2","ms":32229},{"u":"https://example.com/","ms":1071},{"u":"https://quotes.toscrape.com/js/","ms":807}],"ms":69662}
+[03:05:38] mem after browse: 699.2MiB / 1.5GiB cpu=9.36%
+[03:05:38] context export:     1829 bytes; cookies=5
+[03:05:40] release: 200 2.481410 {"id":"3bd12573-cabe-4292-aa20-6c0e5cf1813e","createdAt":"2026-10-1
+[03:05:43] profile dir on host: 5196 KB, files=255
+[03:05:44] tar+zstd -3:   937459 bytes in 0.38 s
+[03:05:45] slim (caches excluded) tar+zstd -3:    57356 bytes in 0.61 s
+[03:05:45] --- headful launch (headless:false)
+[03:05:48] create: 500 3.531905 {"success":false,"message":"Failed after 3 attempts. Last error: Browser process error (launch_failed): Failed to launch the browser process! undefined\n[1143:1167:1009/230548.642735:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such
+[03:05:51] mem headful: 224.1MiB / 1.5GiB cpu=0.62%
+[03:05:53] release: 200 1.757127 {"id":"35a33a2f-c2be-4277-be3e-e8196a1e6d8e","createdAt":"2026-10-1
+[03:05:59] fleet-spike-scale-b healthy after 4.4 s; idle mem: 344.2MiB / 1.5GiB cpu=129.87%
+[03:06:05] create B persist: 200 6.479024 {"id":"f9830375-10d2-4a27-8b8a-32acb08c3c94","c
+[03:06:07] restore-from-tarball getstate B: {"mode":"getstate","port":"3312","cookie":"","localStorage":null,"restored":false,"ms":480}
+[03:06:14] fleet-spike-scale-c healthy after 6.6 s; idle mem: 366.9MiB / 1.5GiB cpu=125.65%
+[03:06:18] create C with sessionContext: 200
+[03:06:19] restore-from-context getstate C: {"mode":"getstate","port":"3313","cookie":"fleetspike=persist-1791601466911","localStorage":"ls-ok","restored":true,"ms":585}
+[03:06:19] --- density: 3 containers idle with one session each
+[03:06:27] idle: A=486.2MiB / 1.5GiB cpu=109.34% | B=629.8MiB / 1.5GiB cpu=7.79% | C=641.5MiB / 1.5GiB cpu=8.52%
+[03:07:10] 3 concurrent browse runs wall: 43.1 s
+[03:07:10] bA: 11943 ms 0 errors
+[03:07:10] bB: 42169 ms 0 errors
+[03:07:10] bC: 42059 ms 0 errors
+[03:07:16] after: A=652.5MiB / 1.5GiB cpu=9.73% | B=742.3MiB / 1.5GiB cpu=7.06% | C=758.5MiB / 1.5GiB cpu=7.32%
+[03:07:16] done; cleanup runs on exit

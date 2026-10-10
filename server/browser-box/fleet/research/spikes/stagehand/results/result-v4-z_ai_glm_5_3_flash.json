@@ -1,0 +1,670 @@
+{
+  "date": "2026-10-10T07:31:02.854Z",
+  "model": "z-ai/glm-5.3-flash",
+  "steelBase": "http://127.0.0.1:3301",
+  "results": [
+    {
+      "name": "steel.createSession(extensions=[stagehand])",
+      "ms": 4399,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "localBrowser.connect",
+      "ms": 877,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "Stagehand.create",
+      "ms": 414,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "goto quotes.toscrape.com",
+      "ms": 753,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "observe('the Next pagination link')",
+      "ms": 2314,
+      "llmCalls": 1,
+      "inputTokens": 2495,
+      "outputTokens": 26,
+      "costUsd": 0.000128
+    },
+    {
+      "name": "extract(first 3 quotes, zod)",
+      "ms": 1981,
+      "llmCalls": 2,
+      "inputTokens": 2403,
+      "outputTokens": 178,
+      "costUsd": 0.000257
+    },
+    {
+      "name": "act(observe.data[0]) [expect 0 calls]",
+      "ms": 460,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "goto quotes.toscrape.com (reset)",
+      "ms": 483,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "act('click the Next link')",
+      "ms": 2823,
+      "llmCalls": 1,
+      "inputTokens": 3067,
+      "outputTokens": 33,
+      "costUsd": 0.000158
+    },
+    {
+      "name": "goto reset (cache run 1)",
+      "ms": 1104,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "act('click the Next link', {cache:true}) run 1",
+      "ms": 5027,
+      "llmCalls": 1,
+      "inputTokens": 2756,
+      "outputTokens": 42,
+      "costUsd": 0.000434
+    },
+    {
+      "name": "goto reset (cache run 2)",
+      "ms": 497,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "act('click the Next link', {cache:true}) run 2",
+      "ms": 2479,
+      "llmCalls": 1,
+      "inputTokens": 3075,
+      "outputTokens": 33,
+      "costUsd": 0.000158
+    },
+    {
+      "name": "goto reset (decider)",
+      "ms": 134,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "page.snapshot()",
+      "ms": 386,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "act({selector:xpath from snapshot, method:click}) [expect 0 calls]",
+      "ms": 282,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "act(broken selector, selfHeal default) [expect 0 calls]",
+      "ms": 16,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "goto the-internet /key_presses",
+      "ms": 15591,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "error": "waitForMainLoadState(domcontentloaded) timed out after 14909ms"
+    },
+    {
+      "name": "act('type %secret% into the text input', variables)",
+      "ms": 5966,
+      "llmCalls": 1,
+      "inputTokens": 806,
+      "outputTokens": 20,
+      "costUsd": 0.000131
+    },
+    {
+      "name": "page.snapshot() after typing",
+      "ms": 35,
+      "llmCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "name": "observe('the text input') after typing",
+      "ms": 533,
+      "llmCalls": 1,
+      "inputTokens": 280,
+      "outputTokens": 11,
+      "costUsd": 0.000048
+    }
+  ],
+  "notes": {
+    "observe": {
+      "data": [
+        {
+          "selector": "xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+          "description": "Next pagination link",
+          "method": "click",
+          "arguments": []
+        }
+      ],
+      "usage": {
+        "inputTokens": 2495,
+        "outputTokens": 26,
+        "reasoningTokens": 1,
+        "cachedInputTokens": 0,
+        "inferenceTimeMs": 2034
+      },
+      "cache": {
+        "status": "DISABLED"
+      }
+    },
+    "extract": {
+      "data": {
+        "quotes": [
+          {
+            "text": "“The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.”",
+            "author": "Albert Einstein"
+          },
+          {
+            "text": "“It is our choices, Harry, that show what we truly are, far more than our abilities.”",
+            "author": "J.K. Rowling"
+          },
+          {
+            "text": "“There are only two ways to live your life. One is as though nothing is a miracle. The other is as though everything is a miracle.”",
+            "author": "Albert Einstein"
+          }
+        ]
+      },
+      "usage": {
+        "inputTokens": 2403,
+        "outputTokens": 178,
+        "reasoningTokens": 2,
+        "cachedInputTokens": 0,
+        "inferenceTimeMs": 1845
+      }
+    },
+    "actFromObserve": {
+      "data": {
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+        "actionDescription": "Next pagination link",
+        "actions": [
+          {
+            "selector": "xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+            "description": "Next pagination link",
+            "method": "click",
+            "arguments": []
+          }
+        ]
+      },
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "inferenceTimeMs": 0
+      },
+      "url": "https://quotes.toscrape.com/page/2/"
+    },
+    "actString": {
+      "data": {
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+        "actionDescription": "Next link in pagination navigation",
+        "actions": [
+          {
+            "selector": "xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+            "description": "Next link in pagination navigation",
+            "method": "click",
+            "arguments": []
+          }
+        ]
+      },
+      "usage": {
+        "inputTokens": 3067,
+        "outputTokens": 33,
+        "reasoningTokens": 1,
+        "cachedInputTokens": 0,
+        "inferenceTimeMs": 1861
+      },
+      "cache": {
+        "status": "DISABLED"
+      },
+      "url": "https://quotes.toscrape.com/page/2/"
+    },
+    "cacheRun1": {
+      "cache": {
+        "status": "DISABLED"
+      },
+      "usage": {
+        "inputTokens": 2756,
+        "outputTokens": 42,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "inferenceTimeMs": 3814
+      },
+      "url": "https://quotes.toscrape.com/page/2/"
+    },
+    "cacheRun2": {
+      "cache": {
+        "status": "DISABLED"
+      },
+      "usage": {
+        "inputTokens": 3075,
+        "outputTokens": 33,
+        "reasoningTokens": 1,
+        "cachedInputTokens": 0,
+        "inferenceTimeMs": 1567
+      },
+      "url": "https://quotes.toscrape.com/page/2/"
+    },
+    "decider": {
+      "treeChars": 6981,
+      "treeLines": 167,
+      "xpathEntries": 256,
+      "urlEntries": 56,
+      "pickedLine": "[0-1888] link: Next",
+      "id": "0-1888",
+      "rawXpath": "/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+      "sampleXpaths": [
+        [
+          "0-1683",
+          "/"
+        ],
+        [
+          "0-1684",
+          "/html[1]"
+        ],
+        [
+          "0-1685",
+          "/html[1]"
+        ],
+        [
+          "0-1686",
+          "/html[1]/head[1]"
+        ]
+      ],
+      "act": {
+        "data": {
+          "success": true,
+          "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+          "actionDescription": "Next pagination link",
+          "actions": [
+            {
+              "selector": "xpath=/html[1]/body[1]/div[1]/div[2]/div[1]/nav[1]/ul[1]/li[1]/a[1]",
+              "description": "Next pagination link",
+              "method": "click",
+              "arguments": []
+            }
+          ]
+        },
+        "usage": {
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "reasoningTokens": 0,
+          "cachedInputTokens": 0,
+          "inferenceTimeMs": 0
+        },
+        "url": "https://quotes.toscrape.com/page/2/"
+      }
+    },
+    "brokenDefault": {
+      "data": {
+        "success": false,
+        "message": "Failed to perform act: Could not find an element for the given xPath(s): xpath=/html/body/div[99]/a[7]",
+        "actionDescription": "missing link",
+        "actions": []
+      },
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "inferenceTimeMs": 0
+      }
+    },
+    "variables": {
+      "data": {
+        "success": false,
+        "message": "Failed to perform act: No action found",
+        "actionDescription": "type %secret% into the text input box",
+        "actions": []
+      },
+      "typedValueMatches": false,
+      "canaryInAnyPromptSoFar": false,
+      "canaryInSnapshotAfterTyping": false,
+      "canaryInPromptsAfterFollowupObserve": false
+    }
+  },
+  "metrics": {
+    "actPromptTokens": 9704,
+    "actCompletionTokens": 128,
+    "actReasoningTokens": 5,
+    "actCachedInputTokens": 0,
+    "actInferenceTimeMs": 8089,
+    "extractPromptTokens": 2403,
+    "extractCompletionTokens": 178,
+    "extractReasoningTokens": 2,
+    "extractCachedInputTokens": 0,
+    "extractInferenceTimeMs": 1845,
+    "observePromptTokens": 2775,
+    "observeCompletionTokens": 37,
+    "observeReasoningTokens": 6,
+    "observeCachedInputTokens": 0,
+    "observeInferenceTimeMs": 2521,
+    "totalPromptTokens": 14882,
+    "totalCompletionTokens": 343,
+    "totalReasoningTokens": 13,
+    "totalCachedInputTokens": 0,
+    "totalInferenceTimeMs": 12455
+  },
+  "llm": {
+    "calls": 8,
+    "costUsd": 0.001313875,
+    "inputTokens": 14882,
+    "outputTokens": 343,
+    "reasoningTokens": 13
+  },
+  "llmRecords": [
+    {
+      "callNo": 1,
+      "name": "Observation",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 1519,
+      "provider": "Sail Research",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 2495,
+        "completion_tokens": 26,
+        "total_tokens": 2521,
+        "cost": 0.000127875,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000127875,
+          "upstream_inference_prompt_cost": 0.000112275,
+          "upstream_inference_completions_cost": 0.0000156
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 2,
+      "name": "Extraction",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 339,
+      "provider": "InferenceNet",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 2115,
+        "completion_tokens": 123,
+        "total_tokens": 2238,
+        "cost": 0.00020955,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.00020955,
+          "upstream_inference_prompt_cost": 0.00014805,
+          "upstream_inference_completions_cost": 0.0000615
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 3,
+      "name": "Metadata",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 515,
+      "provider": "InferenceNet",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 288,
+        "completion_tokens": 55,
+        "total_tokens": 343,
+        "cost": 0.00004766,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.00004766,
+          "upstream_inference_prompt_cost": 0.00002016,
+          "upstream_inference_completions_cost": 0.0000275
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 4,
+      "name": "Act",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 1324,
+      "provider": "Sail Research",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 3067,
+        "completion_tokens": 33,
+        "total_tokens": 3100,
+        "cost": 0.000157815,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000157815,
+          "upstream_inference_prompt_cost": 0.000138015,
+          "upstream_inference_completions_cost": 0.0000198
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 5,
+      "name": "Act",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 2941,
+      "provider": "Crusoe",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 2756,
+        "completion_tokens": 42,
+        "total_tokens": 2798,
+        "cost": 0.0004344,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0004344,
+          "upstream_inference_prompt_cost": 0.0004134,
+          "upstream_inference_completions_cost": 0.000021
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 6,
+      "name": "Act",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 1055,
+      "provider": "Sail Research",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 3075,
+        "completion_tokens": 33,
+        "total_tokens": 3108,
+        "cost": 0.000158175,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000158175,
+          "upstream_inference_prompt_cost": 0.000138375,
+          "upstream_inference_completions_cost": 0.0000198
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 7,
+      "name": "Act",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 673,
+      "provider": "Together",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 806,
+        "completion_tokens": 20,
+        "total_tokens": 826,
+        "cost": 0.0001309,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001309,
+          "upstream_inference_prompt_cost": 0.0001209,
+          "upstream_inference_completions_cost": 0.00001
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 3,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    },
+    {
+      "callNo": 8,
+      "name": "Observation",
+      "model": "z-ai/glm-5.3-flash",
+      "httpStatus": 200,
+      "ms": 407,
+      "provider": "BaseTen",
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 280,
+        "completion_tokens": 11,
+        "total_tokens": 291,
+        "cost": 0.0000475,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0000475,
+          "upstream_inference_prompt_cost": 0.000042,
+          "upstream_inference_completions_cost": 0.0000055
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 5,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "fenced": false
+    }
+  ]
+}

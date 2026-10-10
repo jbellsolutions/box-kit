@@ -1,0 +1,10 @@
+{
+ "model": "deepseek/deepseek-v4.1-flash",
+ "mode": "or-off",
+ "task": "Go to https://the-internet.herokuapp.com/dynamic_loading/2 , click the Start button, wait for the loading to finish, and report the exact text that appears.",
+ "wall_s": 64.3,
+ "steps": 6,
+ "final": "After navigating to https://the-internet.herokuapp.com/dynamic_loading/2, clicking the Start button, and waiting for the loading to finish, the exact text that appeared is:\n\nHello World!",
+ "done": true,
+ "errors": []
+}

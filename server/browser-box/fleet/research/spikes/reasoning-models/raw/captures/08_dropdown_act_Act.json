@@ -1,0 +1,84 @@
+{
+ "label": "dropdown_act",
+ "name": "Act",
+ "system_prompt": " You are helping the user automate the browser by finding elements based on what action the user wants to take on the page You will be given: 1. a user defined instruction about what action to take 2. a hierarchical accessibility tree showing the semantic structure of the page. The tree is a hybrid of the DOM and the accessibility tree. Return the element that matches the instruction if it exists. If no element on the page matches the instruction, set `action` to null. Do not fabricate or guess an element \u2014 empty strings or placeholder values for elementId/description/method are not acceptable.",
+ "messages": [
+  {
+   "role": "user",
+   "content": {
+    "type": "text",
+    "text": "instruction: Find the most relevant element to perform an action on given the following action: select 'Option 2' from the dropdown.  \n  IF AND ONLY IF the action EXPLICITLY includes the word 'dropdown' and implies choosing/selecting an option from a dropdown, ignore the 'General Instructions' section, and follow the 'Dropdown Specific Instructions' section carefully.\n  \n  General Instructions: \n    Provide an action for this element such as click, fill, type, press, scrollTo, nextChunk, prevChunk, selectOptionFromDropdown, hover, doubleClick, dragAndDrop. Remember that to users, buttons and links look the same in most cases.\n    When choosing non-left click actions, provide right or middle as the argument\n    If the action is completely unrelated to a potential action to be taken on the page, or no matching element exists, set `action` to null. Do not fabricate or guess an element.\n    ONLY return one action. If multiple actions are relevant, return the most relevant one.\n    If the user is asking to scroll to a position on the page, e.g., 'halfway' or 0.75, etc, you must return the argument formatted as the correct percentage, e.g., '50%' or '75%', etc.\n    If the user is asking to scroll to the next chunk/previous chunk, choose the nextChunk/prevChunk method. No arguments are required here.\n    If the action implies a key press, e.g., 'press enter', 'press a', 'press space', etc., always choose the press method with the appropriate key as argument \u2014 e.g. 'a', 'Enter', 'Space'. Do not choose a click action on an on-screen keyboard. Capitalize the first character like 'Enter', 'Tab', 'Escape' only for special keys. \n  \n  Dropdown Specific Instructions:\n    For interacting with dropdowns, there are two specific cases that you need to handle. \n    \n    CASE 1: the element is a 'select' element. \n      - choose the selectOptionFromDropdown method,\n      - set the argument to the exact text of the option that should be selected,\n      - set twoStep to false.\n    CASE 2: the element is NOT a 'select' element:\n      - do not attempt to directly choose the element from the dropdown. You will need to click to expand the dropdown first. You will achieve this by following these instructions:\n        - choose the node that most closely corresponds to the given instruction EVEN if it is a 'StaticText' element, or otherwise does not appear to be interactable.  \n        - choose the 'click' method\n        - set twoStep to true.\n  \nAccessibility Tree: \n[0-74] RootWebArea: The Internet\n  [0-81] scrollable, html\n    [0-97] body\n      [0-102] div\n        [0-105] link: Fork me on GitHub\n          [0-106] image: Fork me on GitHub\n        [0-108] div\n          [0-109] heading: Dropdown List\n          [0-77] select\n            [0-113] MenuListPopup\n              [0-115] option: Please select an option\n              [0-116] option: Option 1\n              [0-117] option: Option 2\n      [0-140] div\n        [0-141] separator\n        [0-142] div\n          [0-72] StaticText: Powered by\n          [0-143] link: Elemental Selenium\n",
+    "annotations": null
+   }
+  }
+ ],
+ "temperature": null,
+ "schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+   "action": {
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "elementId": {
+        "type": "string",
+        "pattern": "^\\d+-\\d+$",
+        "description": "The complete frame ordinal and backend node ID copied from the accessibility tree, without square brackets."
+       },
+       "description": {
+        "type": "string",
+        "description": "A description of the element and its purpose."
+       },
+       "method": {
+        "type": "string",
+        "enum": [
+         "click",
+         "fill",
+         "type",
+         "press",
+         "scrollTo",
+         "nextChunk",
+         "prevChunk",
+         "selectOptionFromDropdown",
+         "hover",
+         "doubleClick",
+         "dragAndDrop"
+        ],
+        "description": "The supported browser interaction method to execute."
+       },
+       "arguments": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "description": "The arguments to pass to the selected interaction method."
+       }
+      },
+      "required": [
+       "elementId",
+       "description",
+       "method",
+       "arguments"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "description": "The element to act on, or null when no matching element exists."
+   },
+   "twoStep": {
+    "type": "boolean",
+    "description": "Whether the selected interaction requires a second action to finish the request."
+   }
+  },
+  "required": [
+   "action",
+   "twoStep"
+  ],
+  "additionalProperties": false
+ }
+}

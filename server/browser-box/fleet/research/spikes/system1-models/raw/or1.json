@@ -1,0 +1,120 @@
+{
+  "url": "https://openrouter.ai/api/v1/systemone",
+  "status": 200,
+  "wall_ms": 270.8,
+  "http_version": "HTTP/1.1",
+  "response_headers": {
+    "x-generation-id": "gen-dec-1791600816-jk4InjPcvOyLwsYfnPSD",
+    "server": "cloudflare",
+    "cf-ray": "a48255ed0bb36380-XXX"
+  },
+  "request_body": {
+    "model": "perplexity/pplx-decider-v1.1-27b",
+    "state": {
+      "command": "Find more quotes beyond the ones shown on this page",
+      "page": {
+        "url": "https://quotes.toscrape.com/",
+        "title": "Quotes to Scrape",
+        "text_excerpt": "Quotes to Scrape. Login. “The world as we have created it is a process of our thinking...” by Albert Einstein (about) Tags: change deep-thoughts thinking world. ... Next →  Top Ten tags: love inspirational life humor books reading friendship friends truth simile. Quotes by: GoodReads.com Made with love by Zyte"
+      }
+    },
+    "questions": {
+      "target": {
+        "type": "choice",
+        "instructions": {
+          "question": "Which element on the current page should be clicked next to advance the goal? Choose 'none' if no element listed here advances it.",
+          "command": "Find more quotes beyond the ones shown on this page"
+        },
+        "criteria": {
+          "e1": "link \"Quotes to Scrape\" -> /",
+          "e2": "link \"Login\" -> /login",
+          "e3": "link \"(about)\" -> /author/Albert-Einstein",
+          "e4": "link \"change\" -> /tag/change/page/1/",
+          "e5": "link \"inspirational\" -> /tag/inspirational/page/1/",
+          "e6": "link \"(about)\" -> /author/Jane-Austen",
+          "e7": "link \"Next ->\" -> /page/2/",
+          "e8": "link \"love\" -> /tag/love/",
+          "e9": "link \"GoodReads.com\" -> https://www.goodreads.com/quotes",
+          "e10": "link \"Zyte\" -> https://www.zyte.com",
+          "none": "No element listed here advances the goal"
+        }
+      },
+      "login_wall": {
+        "type": "noul",
+        "instructions": "Is a sign-in or login form the main thing on this page, so the user must log in before they can continue?",
+        "criteria": {
+          "true": "The page mainly asks for a username/email and password, or says to sign in to continue",
+          "false": "The page shows its normal content; any sign-in link is just one link among many"
+        }
+      },
+      "blocker": {
+        "type": "choice",
+        "instructions": {
+          "question": "What, if anything, on this page is in the way of the goal?",
+          "goal": "Find more quotes beyond the ones shown on this page"
+        },
+        "criteria": {
+          "none": "Nothing is in the way",
+          "consent_dialog": "A cookie or privacy consent dialog",
+          "login_wall": "A sign-in or account prompt",
+          "captcha": "A captcha or robot check",
+          "error_page": "An error, not found, or cannot-reach page",
+          "no_results": "A search or list that says it found nothing",
+          "popup": "A newsletter, app-install or other overlay",
+          "permission_prompt": "A request for a permission such as location, notifications or camera",
+          "no_change": "The page did not change at all"
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "perplexity/pplx-decider-v1.1-27b-20261006",
+    "answers": {
+      "target": {
+        "type": "choice",
+        "choice": "e7",
+        "probabilities": {
+          "e1": 0.00011367382734171881,
+          "e2": 2.4562410540187952e-05,
+          "e3": 0.0001728319101027577,
+          "e4": 9.100282562138789e-05,
+          "e5": 0.0002471939852398044,
+          "e6": 4.300567604495958e-05,
+          "e7": 0.9985459107830736,
+          "e8": 0.00016739274276191625,
+          "e9": 0.0004249090675830912,
+          "e10": 3.7489367742235345e-05,
+          "none": 0.00013202740394845417
+        },
+        "confidence": 0.998400501861381
+      },
+      "login_wall": {
+        "type": "noul",
+        "noul": 0.0009486701056091409
+      },
+      "blocker": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9803758177303408,
+          "consent_dialog": 0.00018974035857164323,
+          "login_wall": 0.005326088841589801,
+          "captcha": 0.00029199995098474856,
+          "error_page": 0.00033858279515078656,
+          "no_results": 0.0001277143247505332,
+          "popup": 0.00026351659455934174,
+          "permission_prompt": 5.532306477299225e-05,
+          "no_change": 0.013031216339279224
+        },
+        "confidence": 0.9779227949466334
+      }
+    },
+    "usage": {
+      "input_tokens": 1000,
+      "output_tokens": 3,
+      "cost": 2e-05
+    },
+    "id": "gen-dec-1791600816-jk4InjPcvOyLwsYfnPSD",
+    "provider": "Perplexity"
+  }
+}

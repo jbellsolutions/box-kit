@@ -1,0 +1,35 @@
+{
+ "label": "books_extract",
+ "name": "Metadata",
+ "system_prompt": "You are an AI assistant tasked with evaluating the progress and completion status of an extraction task.\nAnalyze the extraction response and determine if the task is completed or if more information is needed.\nStrictly abide by the following criteria:\n1. Once the instruction has been satisfied by the current extraction response, ALWAYS set completion status to true and stop processing, regardless of remaining chunks.\n2. Only set completion status to false if BOTH of these conditions are true:\n   - The instruction has not been satisfied yet\n   - There are still chunks left to process (chunksTotal > chunksSeen)",
+ "messages": [
+  {
+   "role": "user",
+   "content": {
+    "type": "text",
+    "text": "Instruction: extract the title and price of every book on this page\nExtracted content: {\n  \"books\": [\n    {\n      \"title\": \"A Light in the Attic\",\n      \"price\": \"\u00a351.77\"\n    },\n    {\n      \"title\": \"Tipping the Velvet\",\n      \"price\": \"\u00a353.74\"\n    },\n    {\n      \"title\": \"Soumission\",\n      \"price\": \"\u00a350.10\"\n    },\n    {\n      \"title\": \"Sharp Objects\",\n      \"price\": \"\u00a347.82\"\n    },\n    {\n      \"title\": \"Sapiens: A Brief History of Humankind\",\n      \"price\": \"\u00a354.23\"\n    },\n    {\n      \"title\": \"The Requiem Red\",\n      \"price\": \"\u00a322.65\"\n    },\n    {\n      \"title\": \"The Dirty Little Secrets of Getting Your Dream Job\",\n      \"price\": \"\u00a333.34\"\n    },\n    {\n      \"title\": \"The Coming Woman: A Novel Based on the Life of the Infamous Feminist, Victoria Woodhull\",\n      \"price\": \"\u00a317.93\"\n    },\n    {\n      \"title\": \"The Boys in the Boat: Nine Americans and Their Epic Quest for Gold at the 1936 Berlin Olympics\",\n      \"price\": \"\u00a322.60\"\n    },\n    {\n      \"title\": \"The Black Maria\",\n      \"price\": \"\u00a352.15\"\n    },\n    {\n      \"title\": \"Starving Hearts (Triangular Trade Trilogy, #1)\",\n      \"price\": \"\u00a313.99\"\n    },\n    {\n      \"title\": \"Shakespeare's Sonnets\",\n      \"price\": \"\u00a320.66\"\n    },\n    {\n      \"title\": \"Set Me Free\",\n      \"price\": \"\u00a317.46\"\n    },\n    {\n      \"title\": \"Scott Pilgrim's Precious Little Life (Scott Pilgrim #1)\",\n      \"price\": \"\u00a352.29\"\n    },\n    {\n      \"title\": \"Rip it Up and Start Again\",\n      \"price\": \"\u00a335.02\"\n    },\n    {\n      \"title\": \"Our Band Could Be Your Life: Scenes from the American Indie Underground, 1981-1991\",\n      \"price\": \"\u00a357.25\"\n    },\n    {\n      \"title\": \"Olio\",\n      \"price\": \"\u00a323.88\"\n    },\n    {\n      \"title\": \"Mesaerion: The Best Science Fiction Stories 1800-1849\",\n      \"price\": \"\u00a337.59\"\n    },\n    {\n      \"title\": \"Libertarianism for Beginners\",\n      \"price\": \"\u00a351.33\"\n    },\n    {\n      \"title\": \"It's Only the Himalayas\",\n      \"price\": \"\u00a345.17\"\n    }\n  ]\n}",
+    "annotations": null
+   }
+  }
+ ],
+ "temperature": null,
+ "schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+   "progress": {
+    "type": "string",
+    "description": "progress of what has been extracted so far, as concise as possible"
+   },
+   "completed": {
+    "type": "boolean",
+    "description": "true if the goal is now accomplished. Use this conservatively, only when sure that the goal has been completed."
+   }
+  },
+  "required": [
+   "progress",
+   "completed"
+  ],
+  "additionalProperties": false
+ }
+}

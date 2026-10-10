@@ -1,0 +1,20 @@
+5032	Default
+76	segmentation_platform
+48	first_party_sets.db
+20	GPUPersistentCache
+4	extensions_crx_cache
+4	component_crx_cache
+4	Variations
+4	Local State
+1600	Cache
+548	GPUCache
+548	DawnWebGPUCache
+548	DawnGraphiteCache
+444	Code Cache
+168	Web Data
+160	History
+128	History-journal
+76	Account Web Data
+56	DIPS-wal
+52	Shared Dictionary
+52	Network Action Predictor
