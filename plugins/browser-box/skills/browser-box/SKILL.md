@@ -1,17 +1,18 @@
 ---
 name: browser-box
-description: Read, fetch, screenshot, click through or log into any web page through a self-hosted browser, hand it a whole browsing goal, and stand that browser up on a VPS when it isn't running yet. Use when asked to "read this page", "what does this site say", "get the data from", "screenshot this", "fill in this form", "click through", "log in and check", "scrape", "go find out", or when a WebFetch was blocked, returned JavaScript instead of content, or hit a bot check. Also use for "is the browser box up", "start the browser box", "deploy browser-box".
+description: Read, fetch, screenshot, click through any public web page through hosted browsers behind one gateway, hand it a whole browsing goal, and stand that gateway up on a VPS when it isn't running yet. Use when asked to "read this page", "what does this site say", "get the data from", "screenshot this", "fill in this form", "click through", "scrape", "go find out", or when a WebFetch was blocked, returned JavaScript instead of content, or hit a bot check. Also use for "is the browser box up", "start the browser box", "deploy browser-box".
 allowed-tools: Bash, Read
 ---
 
 # browser-box — one browser, one door
 
-A **single gateway** in front of **one** self-hosted Steel browser, over MCP. **You are the
-brain**, the box is the hands. Two models can run in it, both opt-in: Jev (behind `act`) only
-picks which element a step means; Browser-Use (behind `task`) plans steps for a goal you hand
-over. Neither decides what you are trying to do.
+A **single gateway** in front of **hosted browsers** (Browser Use Cloud; Browserbase as the
+emergency lane), over MCP. The host runs no browser. **You are the brain**, the box is the hands.
+Two models can run in it, both opt-in: Jev (behind `act`) only picks which element a step means;
+Browser-Use (behind `task`) plans steps for a goal you hand over. Neither decides what you are
+trying to do.
 
-Kit: `https://github.com/jbellsolutions/box-kit` (browser-box lives in `server/browser-box`)
+Repo: `https://github.com/jbellsolutions/box-kit` (the server is in `server/browser-box`)
 
 ---
 
@@ -22,15 +23,16 @@ Kit: `https://github.com/jbellsolutions/box-kit` (browser-box lives in `server/b
 | Tool | Use it for | Cost |
 |---|---|---|
 | `fetch` | **Try this first.** Plain HTTP GET — server-rendered HTML, JSON, APIs, RSS, docs | free, instant |
-| `read` | The real browser. Use when `fetch` came back empty or unrendered | one browser slot |
-| `session` | Persistent cookies/profile — how logged-in work is done | free |
-| `act` | Drive the browser in plain-words steps you plan: open, click, type, scroll | TypeSafe decisions |
-| `task` | Hand a whole goal to an agent: `surface="browser"` (Browser-Use, this box's browser) or `"computer"` (an Orgo desktop) | model tokens, reported per task |
+| `read` | A hosted browser. Use when `fetch` came back empty or unrendered | ~$0.0003 a read |
+| `session` | A fresh, logged-out browser of your own that stays open between calls, for `act` (no logins, ever) | browser time while open |
+| `act` | Drive the browser in plain-words steps you plan: open, click, type, scroll | TypeSafe decisions + browser time |
+| `task` | Hand a whole goal to an agent: `surface="browser"` (Browser-Use on a hosted browser) or `"computer"` (an Orgo desktop) | model tokens, reported per task, plus browser time |
 | `computer` | A full Orgo cloud desktop you drive yourself: screenshot → decide → click/type/key/scroll/bash | Orgo, per hour |
 | `status` | What is up, what is down, why, and what recent calls cost | free |
 
-`act`, `task` and `computer` are **listed only when the box has them configured**, and `task`
-lists only the surfaces it has. If you don't see one, this box doesn't have it — `status`
+Everything but `fetch` and `status` is **listed only when the box has it configured**: `read`
+needs a Browser Use or Browserbase key, `session` a Browser Use key, `act` a Browser Use key and a
+TypeSafe key, `computer` an Orgo key. `task` lists only the surfaces it has. If you don't see one, this box doesn't have it — `status`
 says so. There is no provider catalog, no readiness
 walkthrough, no plan/verify/resume, no doctor variants. **If a tool is listed, it works.** If it
 can't work right now, `status` says so in one line with the reason.
@@ -38,16 +40,16 @@ can't work right now, `status` says so in one line with the reason.
 ### The one rule that saves the most time
 
 **`fetch` before `read`, every time.** Most pages are server-rendered; `fetch` answers them
-instantly and for free. `read` boots a browser and holds the single lane — **one browser job
-runs at a time on the host**, so a second caller waits. Burning that slot on a page `fetch`
-could have answered is the main way to make this feel slow.
+instantly and for free. `read` opens a paid hosted browser (about $0.0003, a few seconds) and
+counts against the box's monthly cap. Burning one on a page `fetch` could have answered is the
+main way to make this slow and costly.
 
 Escalate to `read` when `fetch` returns almost no text, returns a shell of `<script>` tags,
 or returns a bot-check page.
 
 ### Clicking and typing: `act` or `task`?
 
-**Measured (5 jobs × 3 runs):**
+**Measured (5 jobs × 3 runs, on the retired Steel engine; not rerun on hosted browsers):**
 - `act` went 3/3 on forms, pagination, cookie state and a React to-do app, in 0.5–5 s.
 - `task` took 30–130 s and failed the cookie job 2 of 3 times and the to-do app 3 of 3.
 - Default to `act`. `act`'s one miss: asked for the first search result on Wikipedia, it clicked a red
@@ -59,20 +61,23 @@ to 4 joined by `then`. Jev picks the element in ~0.3 s; you see every step's out
 - `needs_clarification` → it wasn't sure which element you meant: answer `act(pick=<option>)`.
 - `needs_confirmation` → the step looks hard to undo (buy, delete, send, post): answer
   `act(confirm=true|false)`. Nothing risky runs unconfirmed.
-- It returns the URL and title, not the page's text: follow with `read(url)` to read it
-  (a fresh load, so it will not show what you typed into a form).
-- The tab stays where you left it between calls.
+- It returns the URL and title, not the page's text: pass `read_page=true` to get the page's text,
+  or `read(url)` (a fresh, logged-out load, so it will not show what you typed into a form).
+- The tab stays where you left it between calls. Give `session_id` to work in a browser of your own;
+  without it `act` uses one shared scratch browser that is forgotten after a few idle minutes. Every
+  browser is fresh and logged out.
 
 **`task(surface="browser")` when you would rather hand over the goal.** Browser-Use plans
 each step with its own model. You get the answer, every step, the URLs, tokens and cost.
 - A job takes ~30–130 s and under a cent; hand over what you would
   otherwise spend many turns steering.
-- It works in a tab of its own and never touches `act`'s tab. Its tab closes when it finishes:
-  `read(final_url)` to look again.
-- **It keeps running if you stop waiting**, holding the browser, until its `timeout_seconds`.
-  Call `task(cancel=true)` to stop it; the stopped task still reports what it did.
-- After a `session` login, a task can act as that login. Only hand it goals on logged-in
-  sites you would let a web page steer.
+- It gets a hosted browser of its own, so several tasks can run at once and a task never touches
+  `act`'s tab. Its browser is stopped when it finishes: `read(final_url)` to look again.
+- **It keeps running if you stop waiting** until its `timeout_seconds`. Call `task(cancel=true)` to
+  stop every running browser task; each stopped task still reports what it did.
+- A task takes no `session_id`: it always runs in a fresh, logged-out browser of its own. How many
+  run at once is bounded by the agent container's memory (`BROWSERUSE_MEMORY`, default 1200m, about
+  100-300 MB per task), not by a cap of ours.
 
 ### Computer use (Orgo)
 
@@ -85,48 +90,51 @@ action to get the next image in the same call.
 - `bash` is a real shell on that computer, inside the Orgo account.
 - **A computer bills until it is stopped.** There is no auto-stop. Finish with `action="stop"`.
 - One job drives a given computer at a time; a second waits or is told it is busy. A busy
-  computer never blocks the browser — they are separate lanes.
+  computer never blocks the browsers.
 
 Can't see images, or the goal is long? `task(goal, surface="computer")` hands it to Orgo's own
 computer-use agent and returns its answer. You lose sight of each step, so prefer `computer` when you can drive.
 Orgo ignores step limits (its loop caps at 250); `timeout_seconds` is the real bound, and
 hitting it closes the stream, which aborts the run.
 
-### Screenshots cost a second page load
+### Screenshots
 
-`read(url, screenshot=true)` runs a **separate** browser navigation. Two consequences:
+`read(url, screenshot=true)` photographs the same page load the text came from, so the picture and
+the text match. Ask for one when the picture is the evidence, not by default. Browserbase (the
+emergency lane) returns text and links only, no screenshot.
 
-1. On a page that changes between loads, the picture and the text may not match.
-2. That second navigation is **not** redirect-checked (the text is).
-
-Ask for a screenshot when the picture is the evidence — not by default.
-
-### Sessions (logged-in work)
+### Sessions (a browser of your own)
 
 ```
-session(action="create")   -> session_id + devtools_url
+session(action="create")                    -> session_id + live_url (a view of that browser)
 session(action="list")
-session(action="release", session_id="...")
+session(action="release", session_id="...") -> close the browser; the session is gone
 ```
 
-Everything is bound to loopback, so a human signing in by hand must tunnel first:
-`ssh -L 3000:127.0.0.1:3000 <host>`, then open the `devtools_url`. Cookies persist for later
-`read` calls until the session is released. Don't create a session for a one-off public read —
-`read` is cheaper and releases itself.
+A session is a fresh, logged-out browser that stays open between calls, so `act` can work a page
+step by step and several agents can each have their own. Pass its `session_id` to `act` or `read`.
+It keeps **no logins, ever**: there is no `login` or `delete` action, and this box never touches a
+Browser Use profile. Logged-in work belongs to a tool built for it, not here.
+Anyone holding the `live_url` can drive the browser, so keep it to yourself. A session runs one
+browser at a time: calls on the same `session_id` wait for each other and then answer "busy";
+different sessions run side by side. An idle session's browser closes itself after a few minutes and
+the session is gone; a call with its id is refused, so create a new one. If Browser Use cannot open a
+browser, Browserbase is used instead. Don't create a session for a one-off public read.
 
 ### Refusals are answers, not bugs
 
-Every URL is checked before any connection is made. Refused: loopback, private ranges,
-link-local, cloud metadata, and obfuscated forms (`0x7f000001`, `2130706433`, `127.1`).
-Hostnames are resolved and **every** returned address checked. Each redirect hop is cleared
-before it is followed, and the browser is handed the **cleared final URL**, not the one asked
-for.
+Every URL is checked before any browser opens or connection is made. Refused: loopback, private
+ranges, link-local, cloud metadata, and obfuscated forms (`0x7f000001`, `2130706433`, `127.1`).
+Hostnames are resolved and **every** returned address checked. `fetch` clears each redirect hop
+before following it, and a page that lands off the public web is dropped.
 
-If you get `{"error": "refused: ..."}` the target is internal and the guard worked. Report it
+If you get `{"error": "refused: ..."}` the target is internal and the check worked. Report it
 plainly. **Do not try to route around it.**
 
-If you get a busy-lane error, another job holds the browser. Wait, or use `fetch`. If it says
-a browser task holds it, `task(cancel=true)` stops that task.
+If you get "session ... is busy", another call is using that session's browser: wait, or use
+another session. If it says a task holds it, `task(cancel=true)` stops that task. If a result says
+`engine: "browserbase"`, Browser Use could not serve it and the emergency lane did; `fallback_reason`
+says why. Other refusals name a cap or an outage: `status` says which.
 
 ### When something fails
 
@@ -167,7 +175,7 @@ Or a project `.mcp.json` — both expansion forms are verified against Claude Co
 ### CLI
 
 ```bash
-pipx install ./cli          # from a clone; git+https needs auth while the repo is private
+pipx install ./server/browser-box/cli   # from a box-kit clone
 bb login --url https://your-box --token <BB_TOKEN>
 
 bb status
@@ -201,9 +209,11 @@ running does not need provisioning, and `make up` on a live host is safe but poi
 
 ### Host requirements
 
-**2 vCPU / 4 GB, Ubuntu 24.04.** Not 1 vCPU / 2 GB — Steel's Chromium sits at ~686 MB and
-climbs to ~895 MB within a dozen page loads, which is how a 2 GB box with no swap ends up
-OOM-killing a browser instead of failing loudly.
+**Ubuntu 24.04 with Docker.** No browser runs on the host, so there is no Chromium to size it
+for: the compose caps are 256 MB (gateway) and 1200 MB (agent-browseruse). A box runs fine on
+1 vCPU / 2 GB with 2 GB swap (10 reads at once in 4 s, 4 tasks at once in 73 s). You need a Browser
+Use Cloud key (`BROWSER_USE_API_KEY`) in `.env`: pay as you go, no subscription, $1 free credit on
+sign-up. Browserbase's $0 Free plan is enough for the emergency lane (`BROWSERBASE_API_KEY`).
 
 ```bash
 # Docker, swap, firewall
@@ -216,32 +226,21 @@ sudo ufw allow 22 && sudo ufw allow 443 && sudo ufw --force enable
 ### Bring the stack up
 
 ```bash
-git clone https://github.com/jbellsolutions/box-kit && cd box-kit
-make up        # creates server/*/.env with fresh tokens, starts browser-box and data-box
+git clone https://github.com/jbellsolutions/box-kit && cd box-kit/server/browser-box
+cp .env.example .env
+make token                      # paste the value into BB_TOKEN in .env
+chmod 600 .env
+make up                         # builds the gateway (and agent-browseruse if its profile is on)
 make status
-make env       # the export lines that point your agents at these servers
 ```
 
-Optional keys (Browser-Use `task`, Orgo `computer`) go in `server/browser-box/.env`, then
-`make up` again. The `make` targets below run inside `server/browser-box`: `up` · `down` ·
-`status` · `logs` · `logs-steel` · `restart-browser` (the one recovery action for a wedged
-browser) · `test` · `smoke` · `token`.
+`make` targets: `up` · `down` · `status` · `logs` · `test` · `plugin` · `smoke` · `token` · `venv`.
 
-### Lock down egress — not optional
+### Egress
 
-The gateway vets what it sees, but once Steel has a URL **Chromium does its own DNS and its
-own connecting**. Deny it everything private except the gateway:
-
-```bash
-STEEL_NET=$(docker network inspect browser-box_box -f '{{(index .IPAM.Config 0).Subnet}}')
-for range in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 127.0.0.0/8; do
-  sudo iptables -I DOCKER-USER -s "$STEEL_NET" -d "$range" -j DROP
-done
-# ORDER MATTERS: -I prepends, so this ACCEPT must go in LAST to sit ABOVE the DROPs.
-sudo iptables -I DOCKER-USER 1 -s "$STEEL_NET" -d "$STEEL_NET" -j ACCEPT
-sudo iptables -L DOCKER-USER -n --line-numbers | head   # ACCEPT must be line 1
-sudo apt-get install -y iptables-persistent
-```
+There is no host egress rule to apply. The browsers run on Browser Use's (and, in an emergency,
+Browserbase's) network, which has no route to this host's loopback or compose network. The
+checks that remain are in `docs/security.md`.
 
 ### TLS
 
@@ -253,29 +252,21 @@ sudo apt-get install -y caddy   # or the official repo: caddyserver.com/docs/ins
 # Substitute the domain at install time. `BB_DOMAIN=x cp ...` does NOT work: cp does no
 # substitution, and Caddy reads {$BB_DOMAIN} from the caddy SERVICE's environment, not
 # from the shell that copied the file. An unset value yields an empty site address.
-sudo sed "s|{\$BB_DOMAIN}|box.example.com|" server/browser-box/Caddyfile | sudo tee /etc/caddy/Caddyfile >/dev/null
+sudo sed "s|{\$BB_DOMAIN}|box.example.com|" Caddyfile | sudo tee /etc/caddy/Caddyfile >/dev/null
 sudo systemctl reload caddy
 ```
 
 ### Prove it
 
 ```bash
-make -C server/browser-box smoke
+make smoke
 ```
 
-Lists the tools, calls `status`, reads a real page, asserts that obfuscated loopback is
-refused, asserts that a public redirect into loopback is refused, and drives the endpoint
+Lists the tools, calls `status`, reads a real page with a screenshot, asserts that obfuscated
+loopback is refused, asserts that a public redirect into loopback is refused, runs `act` and
+`task` when they are offered, and drives the endpoint
 with a **real MCP client** (initialize, session headers, SSE) on both `/mcp` and `/mcp/`.
 If `make smoke` passes, the box works. If it doesn't, the failing line names what broke.
-
-### Pin the image before production
-
-```
-STEEL_REF=@sha256:7a161b95e8a9b20ddc2f87d380c61636bb13507f7fe99fd4704cb105c5478f99
-```
-
-That digest is the OCI image index covering **both** linux/amd64 and linux/arm64. Pin the
-manifest-list digest, never a single architecture's.
 
 ---
 
@@ -284,21 +275,22 @@ manifest-list digest, never a single architecture's.
 - **No brain in the box by default.** A model inside the tool, in a different body from the
   hands, is the design that failed twice. The calling agent decides. `task` is the one opt-in
   exception, and it only plans the steps of a goal you hand it.
-- **No second browser.** Browser-Use is an *agent* that needs a browser, not a browser. It
-  attaches to this Steel over CDP, like Jev — one engine, two steering wheels.
-- **No concurrency.** A single local Chromium is not concurrency-safe: running jobs in
-  parallel produced dead CDP websockets and loop errors. The lane lock is a bug already paid
-  for, not caution.
+- **No browser on the host.** The browsers are hosted and run side by side,
+  up to the Browser Use plan's limit. Browser-Use is an *agent* that needs a browser, not a
+  browser: each task drives a hosted browser the gateway opened for it.
 
 ### Known limits, stated plainly
 
-1. **DNS rebinding** — a name that checks public can resolve private a moment later.
-2. **A target that answers the pre-flight differently from the browser.**
-3. **`read(screenshot=true)`** — the picture's navigation is not pre-flighted by the gateway.
-   The in-browser guard refuses it instead, and `read` withholds the picture when the guard
-   is down. The host egress rule above is the backstop.
-4. **Steel can reach its own loopback** — no network policy stops a container talking to
-   itself. This is why Steel holds nothing worth stealing and why the bearer token matters.
+1. **DNS rebinding** — a name that checks public can resolve private a moment later. For `fetch`
+   that is this host; for the hosted browsers it is the provider's network.
+2. **Requests a page makes after it loads** are not seen by the gateway; it checks the URL it
+   hands a browser and where the page landed.
+3. **No logins, no profiles.** This box never creates, opens, reads or deletes a Browser Use profile
+   (the account also holds other tools' logged-in profiles). A session's `live_url` lets its holder drive
+   that browser.
+4. **CAPTCHA solving is on, there is no proxy.** Solving follows `BB_SOLVE_CAPTCHAS` (default 1) on
+   both providers. A wall the provider cannot solve comes back as a failed or blocked read, and may
+   fall back to Browserbase, which returns text and links only.
 
 > **Never clone browser-box to "use" it** — attach by URL. One deployment, one code path,
 > work running on the box you already pay for. Clone only on the host you are deploying to.

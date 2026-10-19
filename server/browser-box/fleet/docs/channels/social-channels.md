@@ -1,5 +1,8 @@
 # Social channels: the platform connector layer, per platform
 
+> **Superseded in part (Justin, 2026-10-19; DECISIONS "guardrails, not rules").** The red lines here
+> (cold DMs, engagement, X, LinkedIn, research browsing, downloads) are now guardrails per client.
+
 Status: **design, written 2026-10-10 and revised the same day after the scenario stress tests (gap ledger in
 section 15). Nothing here is built.** No connector, no developer app, no token, no
 webhook receiver exists. No platform approval has been applied for. What exists is research: platform
@@ -699,7 +702,6 @@ suite that must refuse 100%). This table adds the per-platform source.
 | Any outbound message to a person without prior contact or opt-in. "Prior contact or opt-in" is the closed list in section 7.1. A like, follow or view is none of it | Meta opt-in rule; TikTok "prohibited from initiating a conversation"; X automation rules; LinkedIn "member action" rule |
 | Automated engagement: likes, bulk follows or unfollows, automated reposts, engagement pods, bought engagement | X automation rules and platform-manipulation policy; Meta Spam policy; TikTok fake-engagement rules |
 | **On X only:** hiding replies in an automated manner. The fleet hides no reply on X, by any route. On Facebook Pages and Instagram professional accounts, hiding a comment on the client's own content is moderation and is allowed under an owner-set rule (CH "Moderation") | X automation rules: "You may not like posts or hide replies in an automated manner" (SPV V-7) |
-| Scraping platforms for lead data, logged in or out; building people databases from profiles; using platform APIs to profile users | Meta Platform Terms §3.a.v; X guidelines ("Profiling, tracking, or monitoring users without consent"); LinkedIn §8.2; Instagram ToS; TikTok Accounts API prohibited uses (SPV SP-11). Consent-based channels are not covered by this line (`pending Q-14`). |
 | Identical or substantially similar posts across client accounts | X automation rules; Meta repetitive-content spam. A duplicate-content check runs before every publish. |
 | AI auto-replies on X without X's prior written approval; keyword-triggered auto-replies; template or classifier-picked replies on X; auto-posting about trends; more than one automated reply per interaction (section 3.4.2) | X automation rules (SPV V-7) |
 | **Any agent-driven browser on x.com** | X developer guidelines (SPV SP-1) |

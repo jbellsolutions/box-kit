@@ -3,8 +3,8 @@ import unittest
 from contextlib import ExitStack, contextmanager
 from unittest import mock
 
-from gateway import guard, lock, steel, tools
-from gateway.lock import LaneBusy
+from gateway import tools
+from gateway.cloud import CloudUnavailable
 from gateway.security import UnsafeUrl
 
 
@@ -70,14 +70,15 @@ class ToolCards(unittest.TestCase):
 
     def test_an_unconfigured_integration_is_not_listed(self):
         """A box without an Orgo key has no computers; listing one would be the lie this repo exists to stop."""
-        with mock.patch.dict("os.environ", {"ORGO_API_KEY": ""}):
-            self.assertEqual([t["name"] for t in tools.offered_tools()], ["fetch", "read", "session", "status"])
-        with mock.patch.dict("os.environ", {"ORGO_API_KEY": "sk_live_test"}):
-            self.assertEqual([t["name"] for t in tools.offered_tools()], ["fetch", "read", "session", "computer", "task", "status"])
-        with mock.patch.dict("os.environ", {"BB_JEV_URL": "http://agent-jev:3111", "BB_JEV_TOKEN": "t"}):
-            self.assertEqual([t["name"] for t in tools.offered_tools()], ["fetch", "read", "session", "act", "status"])
-        with mock.patch.dict("os.environ", {"BB_JEV_URL": "http://agent-jev:3111", "BB_JEV_TOKEN": ""}):
-            self.assertNotIn("act", [t["name"] for t in tools.offered_tools()])
+        def listed(**env):
+            with mock.patch.dict("os.environ", env):
+                return [t["name"] for t in tools.offered_tools()]
+        self.assertEqual(listed(), ["fetch", "status"])
+        self.assertEqual(listed(ORGO_API_KEY="sk_live_test"), ["fetch", "computer", "task", "status"])
+        self.assertEqual(listed(BROWSER_USE_API_KEY="bu_test"), ["fetch", "read", "session", "status"])
+        self.assertEqual(listed(BROWSER_USE_API_KEY="bu_test", TYPESAFE_API_KEY="t"), ["fetch", "read", "session", "act", "status"])
+        self.assertEqual(listed(BROWSERBASE_API_KEY="bb_test"), ["fetch", "read", "status"])
+        self.assertEqual(listed(TYPESAFE_API_KEY="t"), ["fetch", "status"], "act needs a browser as well as Jev")
 
     def test_every_card_says_when_not_to_use_it(self):
         for card in tools.TOOLS:
@@ -166,184 +167,113 @@ class Fetch(unittest.IsolatedAsyncioTestCase):
 
 
 class Read(unittest.IsolatedAsyncioTestCase):
-    async def test_shapes_a_steel_scrape_into_the_documented_result(self):
-        payload = {
-            "content": {"markdown": "# Title\nbody", "html": "<h1>Title</h1>"},
-            "metadata": {"title": "Title", "statusCode": 200, "urlSource": "https://example.com/"},
-            "links": [{"url": "https://example.com/a"}, {"text": "no url"}],
-        }
+    async def test_refuses_an_inward_url_before_any_browser_opens(self):
+        cloud = mock.Mock(read=mock.AsyncMock(side_effect=AssertionError("no browser for an inward URL")))
+        with mock.patch.object(tools, "cloud_client", lambda: cloud), mock.patch.object(tools, "browserbase_client", lambda: None):
+            for url in ("http://127.0.0.1:8080/status", "http://0x7f000001/", "http://169.254.169.254/latest/meta-data"):
+                with self.assertRaises(UnsafeUrl):
+                    await tools.read({"url": url})
 
-        async def fake_scrape(url, **kw):
-            return payload
+    async def test_a_session_read_needs_browser_use(self):
+        with mock.patch.object(tools, "cloud_client", lambda: None), self.assertRaises(ValueError):
+            await tools.read({"url": "https://example.com/", "session_id": "s1"})
 
-        async def fake_shot(url, **kw):
-            return b"ABC"
 
-        attached = asyncio.Event()
-        attached.set()
-        client, patched = serving({"https://example.com/": FakeResponse("https://example.com/")})
-        with patched, mock.patch.object(tools.steel, "scrape", fake_scrape), mock.patch.object(tools.steel, "screenshot", fake_shot), \
-                mock.patch.object(guard.GUARD, "_attached", attached):
-            out = await tools.read({"url": "https://example.com/", "screenshot": True})
-        self.assertEqual(out["title"], "Title")
-        self.assertEqual(out["status_code"], 200)
-        self.assertEqual(out["links"], ["https://example.com/a"])
-        self.assertEqual(out["text"], "# Title\nbody")
-        self.assertEqual(out["screenshot_base64"], "QUJD")
-        self.assertEqual(out["screenshot_media_type"], "image/jpeg")
+class FakeCloud:
+    """Opens a fake browser; counts what was opened and stopped."""
 
-    async def test_the_screenshot_is_withheld_while_the_guard_is_detached(self):
-        """The picture is a second navigation only the in-browser guard can vet."""
-        shots = []
+    def __init__(self):
+        self.opened = self.stopped = 0
 
-        async def fake_scrape(url, **kw):
-            return {"content": {"markdown": "text"}, "metadata": {}}
+    def browser(self, **kw):
+        from contextlib import asynccontextmanager
+        test = self
+        assert "profile_id" not in kw, "a session must never carry a profile"
 
-        async def fake_shot(url, **kw):
-            shots.append(url)
-            return b"ABC"
-
-        client, patched = serving({"https://example.com/": FakeResponse("https://example.com/")})
-        with patched, mock.patch.object(tools.steel, "scrape", fake_scrape), mock.patch.object(tools.steel, "screenshot", fake_shot), \
-                mock.patch.object(guard.GUARD, "_attached", asyncio.Event()):
-            out = await tools.read({"url": "https://example.com/", "screenshot": True})
-        self.assertEqual(shots, [])
-        self.assertEqual(out["text"], "text")
-        self.assertIn("guard is not attached", out["screenshot_note"])
-
-    async def test_no_screenshot_means_no_second_page_load(self):
-        """The screenshot is a separate endpoint and a separate render; never pay for it silently."""
-        async def fake_scrape(url, **kw):
-            return {"content": {"markdown": "body"}, "metadata": {}, "links": []}
-
-        async def fake_shot(url, **kw):
-            raise AssertionError("screenshot endpoint must not be called")
-
-        client, patched = serving({"https://example.com/": FakeResponse("https://example.com/")})
-        with patched, mock.patch.object(tools.steel, "scrape", fake_scrape), mock.patch.object(tools.steel, "screenshot", fake_shot):
-            out = await tools.read({"url": "https://example.com/"})
-        self.assertNotIn("screenshot_base64", out)
-
-    async def test_refuses_an_inward_url_without_taking_the_lane(self):
-        async def fake(url, **kw):
-            raise AssertionError("steel must not be called")
-
-        client, patched = serving({})
-        with patched, mock.patch.object(tools.steel, "scrape", fake):
-            with self.assertRaises(UnsafeUrl):
-                await tools.read({"url": "http://169.254.169.254/latest/meta-data/"})
-
-    async def test_hands_steel_the_cleared_final_url_not_the_one_asked_for(self):
-        """Steel echoes the request URL back as urlSource, so the browser's own landing
-        address is invisible from here. Pre-flighting the chain is the only control there is."""
-        seen = {}
-
-        async def fake_scrape(url, **kw):
-            seen["url"] = url
-            return {"content": {"markdown": "arrived"}, "metadata": {}, "links": []}
-
-        client, patched = serving({
-            "https://example.com/": FakeResponse("https://example.com/", status_code=302, location="https://example.com/final"),
-            "https://example.com/final": FakeResponse("https://example.com/final"),
-        })
-        with patched, mock.patch.object(tools.steel, "scrape", fake_scrape):
-            out = await tools.read({"url": "https://example.com/"})
-        self.assertEqual(seen["url"], "https://example.com/final")
-        self.assertEqual(out["final_url"], "https://example.com/final")
-
-    async def test_never_lets_the_browser_see_a_redirect_into_a_private_target(self):
-        async def fake_scrape(url, **kw):
-            raise AssertionError(f"the browser must never be handed {url}")
-
-        client, patched = serving({
-            "https://httpbin.example/redirect": FakeResponse("https://httpbin.example/redirect", status_code=302, location="http://127.0.0.1:3000/v1/sessions"),
-        })
-        with patched, mock.patch.object(tools.steel, "scrape", fake_scrape):
-            with self.assertRaises(UnsafeUrl):
-                await tools.read({"url": "https://httpbin.example/redirect"})
+        @asynccontextmanager
+        async def cm():
+            test.opened += 1
+            cdp = mock.Mock(page=mock.AsyncMock(return_value="p"), reader=mock.Mock(done=lambda: False))
+            try:
+                yield cdp, {"session_id": f"br-{test.opened}", "live_url": f"https://live.example/{test.opened}"}
+            finally:
+                test.stopped += 1
+        return cm()
 
 
 class Session(unittest.IsolatedAsyncioTestCase):
-    async def test_create_reports_what_this_box_actually_serves(self):
-        """sessionViewerUrl points at a UI image we do not run; reporting it would be a lie."""
-        async def fake(**kw):
-            return {"id": "abc", "status": "live", "debuggerUrl": "http://localhost:3000/v1/devtools/inspector.html",
-                    "sessionViewerUrl": "http://localhost:3000/"}
+    def store(self):
+        from gateway.sessions import Sessions
+        cloud = FakeCloud()
+        store = Sessions(cloud)
+        return store, cloud, mock.patch.object(tools, "sessions_store", lambda: store)
 
-        with mock.patch.object(tools.steel, "create_session", fake):
-            out = await tools.session({"action": "create"})
-        self.assertEqual(out["session_id"], "abc")
-        self.assertIn("devtools", out["devtools_url"])
-        self.assertNotIn("live_view_url", out)
-        self.assertIn("ssh -L", out["note"])
+    async def test_create_opens_a_fresh_browser_of_its_own(self):
+        store, cloud, patched = self.store()
+        with patched:
+            a = await tools.session({"action": "create", "name": "agent a"})
+            b = await tools.session({"action": "create"})
+        self.assertNotEqual(a["session_id"], b["session_id"])
+        self.assertEqual((cloud.opened, a["live_url"]), (2, "https://live.example/1"))
+        await store.close_all()
 
-    async def test_list_is_flattened_and_trimmed(self):
-        async def fake():
-            return {"sessions": [{"id": "abc", "status": "live", "createdAt": "2026-09-22T19:12:20.450Z",
-                                  "duration": 304, "userAgent": "...", "websocketUrl": "..."}]}
+    async def test_release_closes_the_browser_and_forgets_the_session(self):
+        store, cloud, patched = self.store()
+        with patched:
+            made = await tools.session({"action": "create"})
+            out = await tools.session({"action": "release", "session_id": made["session_id"]})
+            self.assertEqual((out["was_open"], cloud.stopped), (True, 1))
+            with self.assertRaises(ValueError):
+                await tools.session({"action": "release", "session_id": made["session_id"]})
 
-        with mock.patch.object(tools.steel, "sessions", fake):
-            out = await tools.session({"action": "list"})
-        self.assertEqual(out["sessions"], [{"session_id": "abc", "status": "live",
-                                            "created_at": "2026-09-22T19:12:20.450Z", "duration_ms": 304}])
+    async def test_there_is_no_login_or_delete_action(self):
+        card = next(t for t in tools.TOOLS if t["name"] == "session")
+        self.assertEqual(card["inputSchema"]["properties"]["action"]["enum"], ["create", "list", "release"])
 
+    async def test_without_browser_use_there_are_no_sessions(self):
+        with mock.patch.object(tools, "sessions_store", lambda: None), self.assertRaises(CloudUnavailable):
+            await tools.session({"action": "list"})
 
-class SessionLane(unittest.IsolatedAsyncioTestCase):
-    async def test_create_and_release_wait_for_the_browser_lane(self):
-        """Both relaunch Steel's Chromium, which would kill a read or act mid-step."""
-        async def never(*_a, **_k):
-            raise AssertionError("steel was called while another job held the lane")
-        with mock.patch.object(tools.steel, "create_session", never), mock.patch.object(tools.steel, "release_session", never), \
-                mock.patch.object(lock, "WAIT_SECONDS", 0.2):
-            async with tools.lane(label="an act"):
-                with self.assertRaises(LaneBusy):
-                    await tools.session({"action": "create"})
-                with self.assertRaises(LaneBusy):
-                    await tools.session({"action": "release", "session_id": "s1"})
+    async def test_a_busy_session_answers_busy_instead_of_hanging(self):
+        store, _, patched = self.store()
+        held = store.create()
+        await held.lock.acquire()
+        with patched, mock.patch.object(tools, "SESSION_WAIT", 0.05), mock.patch.object(tools, "hosted_act", lambda: True), \
+                self.assertRaises(ValueError) as caught:
+            await tools.act({"command": "scroll down", "session_id": held.session_id})
+        self.assertIn("busy", str(caught.exception))
 
 
 class Status(unittest.IsolatedAsyncioTestCase):
-    async def test_reports_the_browser_as_down_with_the_reason(self):
-        """The failure this whole repo exists to prevent: a capability report that lies."""
-        async def broken():
-            raise steel.SteelUnavailable("steel is unreachable at http://steel:3000")
-        with mock.patch.object(tools.steel, "health", broken):
+    def engines(self, cloud_row=None, bb_row=None):
+        cloud = mock.Mock(status=mock.AsyncMock(return_value=dict(cloud_row))) if cloud_row else None
+        bb = mock.Mock(status=mock.AsyncMock(return_value=dict(bb_row))) if bb_row else None
+        return mock.patch.object(tools, "cloud_client", lambda: cloud), mock.patch.object(tools, "browserbase_client", lambda: bb)
+
+    async def test_nothing_configured_offers_fetch_and_says_what_to_set(self):
+        c, b = self.engines()
+        with c, b:
             out = await tools.status({})
-        self.assertFalse(out["components"][0]["up"])
+        self.assertEqual((out["tools_working_now"], out["tools_unavailable"]), (["fetch", "status"], []))
+        row = next(r for r in out["components"] if r["name"].startswith("browser-use cloud"))
+        self.assertIn("BROWSER_USE_API_KEY", row["detail"])
+
+    async def test_with_browser_use_up_the_browser_tools_work(self):
+        c, b = self.engines({"up": True, "balance_usd": 5})
+        with c, b:
+            out = await tools.status({})
+        self.assertEqual(out["tools_working_now"], ["fetch", "read", "session", "status"])
+
+    async def test_browser_use_down_takes_its_tools_down_with_the_reason(self):
+        c, b = self.engines({"up": False, "problem": "out of credit"})
+        with c, b:
+            out = await tools.status({})
         self.assertEqual(out["tools_working_now"], ["fetch", "status"])
-        self.assertEqual({item["tool"] for item in out["tools_unavailable"]}, {"read", "session"})
-        self.assertIn("unreachable", out["tools_unavailable"][0]["reason"])
+        self.assertTrue(all("not usable" in u["reason"] or "no hosted" in u["reason"] for u in out["tools_unavailable"]))
 
-    async def test_reports_every_tool_when_the_browser_is_up(self):
-        async def ok():
-            return {"status": "ok"}
-        with mock.patch.object(tools.steel, "health", ok):
+    async def test_browserbase_keeps_read_working_when_browser_use_is_down(self):
+        c, b = self.engines({"up": False, "problem": "out of credit"}, {"up": True})
+        with c, b:
             out = await tools.status({})
-        self.assertTrue(out["components"][0]["up"])
-        self.assertEqual(out["tools_working_now"], [t["name"] for t in tools.offered_tools()])
-        self.assertEqual(out["tools_unavailable"], [])
-
-    async def test_survives_a_broken_lane_lock(self):
-        """status is what you call when something else already failed; it must not fail too."""
-        async def ok():
-            return {"status": "ok"}
-
-        def broken(*_a, **_k):
-            raise PermissionError(13, "Permission denied", "/lane/lane.lock")
-
-        with mock.patch.object(tools.steel, "health", ok), mock.patch.object(tools, "lane", broken):
-            out = await tools.status({})
-        self.assertIn("unusable", out["browser_lane"])
-        self.assertEqual(out["tools_working_now"], ["fetch", "status"])
-
-    async def test_reports_the_lane_as_busy_while_a_job_holds_it(self):
-        async def ok():
-            return {"status": "ok"}
-        with mock.patch.object(tools.steel, "health", ok):
-            async with tools.lane(label="a job"):
-                out = await tools.status({})
-        self.assertIn("busy", out["browser_lane"])
-
-
-if __name__ == "__main__":
-    unittest.main()
+        self.assertIn("read", out["tools_working_now"])
+        self.assertNotIn("session", out["tools_working_now"])

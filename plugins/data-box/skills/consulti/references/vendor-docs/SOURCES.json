@@ -1,0 +1,22 @@
+{
+ "tool": "consulti",
+ "home": "https://www.consulti.ai",
+ "terms_note": null,
+ "sources": [
+  {
+   "url": "https://www.consulti.ai/llms.txt",
+   "path": "llms.txt",
+   "why": "the API for agents: endpoints, auth, credits"
+  }
+ ],
+ "not_mirrored": [
+  {
+   "url": "https://www.consulti.ai/api-docs",
+   "why": "answers plain fetches with 429 (bot protection, checked 2026-09-30); llms.txt carries the same reference: every endpoint, auth, tiers, errors, filter values"
+  },
+  {
+   "url": "https://www.consulti.ai/llms-full.txt",
+   "why": "answers 429 as well; not linked from llms.txt, so it may not exist"
+  }
+ ]
+}

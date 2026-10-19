@@ -1,74 +1,151 @@
 ---
 name: data-box
-description: Get web data through a data-box server — turn a public URL into clean markdown, text, HTML or its links, and follow long-running jobs. Use when asked to "scrape this page", "get the content of", "pull the links from", "turn this URL into markdown", "what does this page say" (when you only need the data, not clicks), or "is data-box up". Also use to run your own data-box locally or on a server. For clicking, logging in or screenshots use browser-box instead.
+description: Get web data, lead lists, contacts and buyer intent through a data-box server, always plan-first — scrape a public URL, or pull a list of businesses or people by surveying every source, showing the user a priced plan, and executing it only after they approve. Routes to the tool skills (firecrawl, firecrawl-alexandria, firecrawl-browser, discolike, moltsets, getleads, consulti, lead-radar, jev). Use when asked to "scrape this page", "get the content of", "find me N <businesses> in <place>", "build a lead list", "find emails for these people", "companies like X", "people asking for Y", "where can I get data on", "search the web for", "crawl this site", "extract X from these pages", or "is data-box up". For clicking, logging in or screenshots use browser-box instead.
 allowed-tools: Bash, Read
 ---
 
-# data-box — web data, one door
+# data-box: web data, plan first
 
-data-box is a data server: it gets web content for you and records what each call cost. **You are
-the brain**; it fetches. Browsers (clicking, logins, screenshots) live in **browser-box**, a
-separate server — use that when you need to *do* something on a page, not just read it.
+data-box is a data server: it gets web content and records, and records what each call cost.
+**You are the brain; the user is the approver.** Browsers (clicking, logins, screenshots) live in
+**browser-box**, a separate server.
+
+## Which tool, for what
+
+data-box's data tools come first; the scrapers fill in after them. Each tool has its own skill in
+this plugin, with its charter, costs, lessons and the vendor's own docs. Read it before planning with
+that tool.
+
+| The request is for | Tool skill | Why that one |
+|---|---|---|
+| One page, a site, web or news results, fields out of known pages | **firecrawl** | web-shaped; the free fetch runs first |
+| A list of **businesses** in a place (plumbers in Phoenix) | **firecrawl-alexandria** | BBB, Bing and Maps directories; cheapest per record |
+| **Companies like** these domains, or matching an ICP; firmographics | **discolike** | lookalike discovery over its company index; counts are free |
+| **People** by title, seniority and company; emails or mobiles for a **shortlist** | **moltsets** | search and reveal, metered by fair-use windows; misses are free |
+| **B2B contacts** at scale, with free exact counts | **getleads** | 402M contacts, flat plan with fair-use windows (from D6) |
+| **Local, B2B or creator leads** with verified emails; email verification | **consulti** | 1 credit a row, refunded if unused (from D6) |
+| **People asking to buy** something (buyer intent) | **lead-radar** | its own project, called over HTTP (from D9) |
+| A page that needs clicks, scrolling or a login | **firecrawl-browser** | a sandbox browser billed by the minute (from D3) |
+| How data-box decides borderline cases | **jev** | typed decisions, never text; shadow first (from D8) |
+
+**Order of work for a contact list:** discover companies or businesses first (discolike,
+firecrawl-alexandria), dedupe, then reveal contacts only for the shortlist (moltsets, getleads,
+consulti). Never pay per-record contact tools at discovery scale.
+
+**Excluded by Justin's decision (2026-09-30): Apollo and FullEnrich.** Until D3 removes them from
+the code, a plan may still list an Apollo or FullEnrich lane; drop it with `drop_lanes` and say why.
+
+## The rule: three stages, four steps, for anything paid
+
+The three stages are **intake** (step 1), **planning** (steps 2-3) and **execution** (step 4). Today
+`plan` does intake and planning in one call; a separate intake call arrives in D7.
+
+Every paid request follows the same four steps, whether you reach data-box over MCP, HTTP or the CLI:
+
+1. **Take in the request.** What entity (business, person, property), how many, which fields
+   (phone? email? website?), where, and whether the user named a source ("use Disco", "BBB only").
+2. **Scope every source.** `plan` surveys them all, tier by tier. Read the survey: every candidate,
+   its price, page size, whether it can run here and why not.
+3. **Narrow it to a game plan.** `plan` returns lanes (ranked by records per credit x coverage x
+   field fit), cells and pages, the cost in credits and dollars against the live balance, and a
+   preflight: one real call per lane with sample rows.
+4. **Execute only after the user approves.** Show the plan, get a yes, then call `execute` with the
+   `plan_id` and `approve: true`.
+
+**Never approve a plan on the user's behalf**, not even a cheap one, and never pass
+`approve: true` without their yes in this conversation. If they want changes (fewer lanes, a lower
+cap, different places), make a new plan, or pass `drop_lanes` / a lower `max_cost_usd` to `execute`.
 
 ## The tools
 
-| Tool | Use it for | Cost |
+| Tool | Step | Use it for | Cost |
+|---|---|---|---|
+| `status` | — | What is up, the Firecrawl balance, plans awaiting approval, recent spend | free |
+| `scrape` | — | One public URL → `markdown`, `text`, `html` or `links` | free rung; a blocked page comes back with a `plan` |
+| `sources` | 2 | "Where could this data come from?" The survey alone | free |
+| `plan` | 1-3 | Any paid pull: a lead list (`kind: pull`), web `search`, `crawl`, `extract`, or a scrape past the free rung | preflight only (at most 25 credits) |
+| `execute` | 4 | Run a plan the user approved; call again to resume it | at most the approved amount |
+| `job` | — | Follow anything slow; `results` and `export` (csv/json/jsonl) read a pull's rows | free |
+
+## How to present a plan
+
+Keep it short and complete. From the plan's `body`:
+
+- **Understood:** the intake in one line (entity, count, fields, places, named sources).
+- **Sources considered:** how many, by tier (`step_2_survey.by_tier`), and the notable ones that
+  cannot run and why (terms to accept, not wired yet, missing fields). Apify, if listed, is the
+  expensive backup's backup.
+- **Alexandria browsed:** which categories were read in full and how many tools
+  (`step_2_survey.alexandria`), and how many can serve (`can_serve`).
+- **Game plan:** each lane with its role (base layer or top-up), whether preflight `confirmed` it,
+  calls, credits, dollars and expected records (`step_3_game_plan.lanes`); lanes dropped by
+  preflight and why (`passed_over`); the worst-case total, the budget, and the Firecrawl balance.
+- **Preflight:** per lane, records returned, fields present, sample names, credits spent.
+- **Warnings:** read every one out (an empty balance, a named source that cannot run, an estimate
+  over the cap).
+- Then ask: "Run it for up to $X?"
+
+After `execute`: report unique records against the target, what each lane did, credits spent, and
+the note (for example "reached the requested count", or why it stopped and that running `execute`
+again resumes it). Offer the export: `job` with `action: "export"`, `format: "csv"`.
+
+## Tiers, and why
+
+| Tier | Sources | When |
 |---|---|---|
-| `scrape` | One public URL → `markdown` (default), `text`, `html` or `links` | free rung first; paid rungs only if configured, never past `max_cost_usd` (default $0.05) |
-| `job` | Follow anything slow: `get`, `list`, `cancel`, `results` (page through items), `export` (csv/json/jsonl) | free |
-| `status` | What is up, which sources are configured, recent spend | free |
+| 1 | Firecrawl (with Alexandria's providers: BBB, Bing, Google Maps, Houzz, ...), DiscoLike, MoltSets, GetLeads, Consulti, Lead Radar | First choice. Firecrawl for anything web-shaped. `status` says which are wired on this server |
+| 2 | Decodo, then Bright Data | When tier 1 cannot serve |
+| 3 | Apify | The backup's backup: expensive; only when nothing above fits |
 
-**How `scrape` climbs.** It tries a free direct fetch first and stops at the first rung that
-returns the real page. Then paid unblockers (Firecrawl, Bright Data, Decodo) and finally a real
-browser (browser-box) — but only the rungs the server has keys for. `rungs_tried` shows every
-rung, its cost and why it was left. If only the free rung is available and a page is blocked,
-you get `blocked` saying what stopped it: that is an answer, not an error. Next move: open the
-page with browser-box `read`.
+The scrape ladder after the free fetch: Firecrawl → Decodo → Bright Data → Firecrawl's browser →
+Hyperbrowser → browser-box. `status` and every survey say which are wired on this server.
 
-**Money rules.** Every call takes `max_cost_usd`; a paid step that would exceed it never starts.
-Pass `request_id` when you might retry — the same id returns the first job instead of paying
-twice. Slow calls return a `job_id` after `wait_seconds`; poll it with `job(action="get")`.
+**Lead-pull lanes for US businesses** (verified live, 2026-09): BBB search is the cheapest call (1
+credit, 15 a page, no website); Bing gives name, address, phone and website (5 credits, up to 30 a
+page, at most 3 pages a metro); Google Maps is one call of up to 20 per "category in city" cell.
+Contact reveal (MoltSets, GetLeads, Consulti) runs only on the deduped shortlist, never for
+discovery.
 
-**Refused on purpose:** loopback, private, link-local and `file:` targets, on every redirect.
-Don't retry a refusal unchanged.
+**Why a run spends less than the plan's worst case:** a cell stops at a short page or when its pages
+start repeating, calls stop at the requested unique count, and no call can take the Firecrawl
+balance below zero. A bigger pull is a new plan, never a mid-run change: that is how a Hermes pull
+quoted at ~1,300 credits spent ~8,000 on 2026-09-28.
 
-## Which sources a server has
+**Anti-patterns:** one source for a broad vertical (BBB alone misses most operators); per-record
+people search for discovery; deep Maps or Bing pagination; sweeps without dedupe. The plan already
+guards against these; don't talk the user into them.
 
-Call `status`. Each source is listed with `configured: true/false` and what it is for:
+## Money rules
 
-| Source | Unlocks | Server env var(s) |
-|---|---|---|
-| direct fetch | scrape rung 0 | none (always on, free) |
-| Firecrawl | scrape rung 1; later websearch, crawl, extract | `FIRECRAWL_API_KEY` |
-| Bright Data | scrape rung 2 (Unlocker); datasets | `BRIGHTDATA_API_KEY` |
-| Decodo | scrape rung 3 | `DECODO_SCRAPER_API_TOKEN` |
-| Apify | Store actors (`sources`, `run`) | `APIFY_TOKEN` |
-| browser-box | scrape's last rung: a real browser | `DATABOX_BROWSERBOX_URL`, `DATABOX_BROWSERBOX_TOKEN` |
+- `max_cost_usd` on `plan` caps the whole plan, preflight included; on `execute` it approves less
+  than the plan's budget, never more.
+- Pass `request_id` when you might retry: the same id returns the first job instead of paying twice.
+- Slow calls return a `job_id` after `wait_seconds`; poll with `job` (`action: "get"`).
+- A plan expires after 24 hours. Prices and balances are re-checked by a new one.
+- If the Firecrawl balance is empty, the plan says so and skips preflight: tell the user credits
+  are needed before anything can run.
 
-Paid sources bill **the account whose key is on the server** — on your own data-box, that's you.
-Some sources are still being wired into the rungs; `status` is the truth for your server.
+**Refused on purpose:** loopback, private, link-local and `file:` targets, on every redirect. Don't
+retry a refusal unchanged; read its reason.
 
 ## Running your own
 
 ```bash
-git clone https://github.com/jbellsolutions/box-kit && cd box-kit
-make up        # starts data-box (and browser-box) in Docker with fresh tokens
-make env       # prints DATABOX_URL / DATABOX_TOKEN for your agents
-```
-
-Or without Docker, since data-box runs no browser:
-
-```bash
-cd box-kit/server/data-box
-python3 -m venv .venv && .venv/bin/pip install -e .
+git clone https://github.com/jbellsolutions/data-box && cd data-box
+python3 -m venv .venv && .venv/bin/pip install -e ".[databox]"
 export DATABOX_TOKEN="$(openssl rand -hex 32)"   # keep it; clients send it as a Bearer token
+export FIRECRAWL_API_KEY=...                      # turns on plan and execute
 .venv/bin/data-box serve                          # http://127.0.0.1:8092/mcp
 ```
 
-Then point the plugin at it: `DATABOX_URL=http://127.0.0.1:8092/mcp` and the same
-`DATABOX_TOKEN`. Add paid keys to `server/data-box/.env` (or the server's environment) to switch sources on.
-For a server others reach over the internet, put it behind HTTPS — see the kit's
-`docs/SELF-HOST.md`.
+Point the plugin at it: `DATABOX_URL=http://127.0.0.1:8092/mcp` and the same `DATABOX_TOKEN`.
+Paid sources bill **the account whose key is on the server**. For a server others reach over the
+internet, put it behind HTTPS (Caddy); see the repo's `docs/deploy.md`.
 
-Same tools over HTTP: `POST <server>/api/v1/<tool>` with the JSON arguments, `GET
-/api/v1/status`, spec at `/openapi.json`. And a CLI: `data-box scrape --url https://example.com`.
+Same tools over HTTP (`POST <server>/api/v1/<tool>`, spec at `/openapi.json`) and the CLI:
+
+```bash
+data-box plan "roofing contractors" --geo '["Austin, TX"]' --count 50 --fields '["phone","website"]'
+data-box execute plan_ab12cd34 --approve true      # only after the user said yes
+data-box job export job_ab12cd34 --format csv > leads.csv
+```

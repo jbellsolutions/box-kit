@@ -1,0 +1,110 @@
+{
+  "schema_version": 2,
+  "generated_at": "2026-09-23T17:11:33.887998Z",
+  "printing_press_version": "4.32.4",
+  "api_name": "browser-box",
+  "display_name": "browser-box",
+  "cli_name": "browser-box-pp-cli",
+  "creator": {
+    "handle": "jbellsolutions",
+    "name": "jbellsolutions"
+  },
+  "owner": "jbellsolutions",
+  "printer": "jbellsolutions",
+  "printer_name": "jbellsolutions",
+  "spec_path": "openapi.json",
+  "spec_format": "openapi3",
+  "spec_source": "official",
+  "spec_checksum": "sha256:be7f11d1b8fe29e8c0626830fe2c3fb35a014a21a60fe2a3efe302e20c4a8bc2",
+  "run_id": "20260923-112745-85a9228c",
+  "category": "developer-tools",
+  "description": "Your own browser box from the command line, plus the memory the box does not keep: call history, a page cache, full-text search and batched reads that retry busy refusals.",
+  "mcp_binary": "browser-box-pp-mcp",
+  "mcp_tool_count": 8,
+  "mcp_ready": "full",
+  "api_version": "1.0.0",
+  "auth_type": "bearer_token",
+  "auth_preference": "bearer",
+  "auth_env_vars": [
+    "BROWSER_BOX_TOKEN"
+  ],
+  "novel_features": [
+    {
+      "name": "Durable call ledger",
+      "command": "history",
+      "description": "See every call you made through this CLI, what it cost and why it failed, long after the box forgot it."
+    },
+    {
+      "name": "Page cache re-emit",
+      "command": "cache",
+      "description": "Get a page you already read back instantly, without opening a browser."
+    },
+    {
+      "name": "Cached-page full-text search",
+      "command": "find",
+      "description": "Ask which page you read said something, across everything read so far."
+    },
+    {
+      "name": "Busy-retrying batch queue",
+      "command": "queue read",
+      "description": "Read a list of pages one after another, retrying when the box answers \"busy\"."
+    },
+    {
+      "name": "Session alias",
+      "command": "alias",
+      "description": "Name a logged-in browser session so you can tell later which one it is and release it."
+    },
+    {
+      "name": "Status drift",
+      "command": "drift",
+      "description": "See only what changed on the box since you last looked."
+    }
+  ],
+  "novel_features_built": [
+    {
+      "name": "Durable call ledger",
+      "command": "history",
+      "description": "See every call you made through this CLI, what it cost and why it failed, long after the box forgot it."
+    },
+    {
+      "name": "Page cache re-emit",
+      "command": "cache",
+      "description": "Get a page you already read back instantly, without opening a browser."
+    },
+    {
+      "name": "Cached-page full-text search",
+      "command": "find",
+      "description": "Ask which page you read said something, across everything read so far."
+    },
+    {
+      "name": "Busy-retrying batch queue",
+      "command": "queue read",
+      "description": "Read a list of pages one after another, retrying when the box answers \"busy\"."
+    },
+    {
+      "name": "Session alias",
+      "command": "alias",
+      "description": "Name a logged-in browser session so you can tell later which one it is and release it."
+    },
+    {
+      "name": "Status drift",
+      "command": "drift",
+      "description": "See only what changed on the box since you last looked."
+    }
+  ],
+  "verify": {
+    "mode": "live",
+    "pass_rate": 100,
+    "passed": 39,
+    "total": 39,
+    "data_pipeline": true,
+    "verdict": "PASS"
+  },
+  "scorecard": {
+    "steinberger": {
+      "percentage": 94,
+      "grade": "A",
+      "total": 94
+    }
+  }
+}

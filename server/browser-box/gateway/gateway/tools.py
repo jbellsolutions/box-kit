@@ -1,10 +1,12 @@
 """The tools. If one is listed it works; if it cannot work right now, `status` says why.
 
-Two rules decide what is listed. Core tools (fetch, read, session, status) are always
-listed, and an outage of the browser behind them is reported by `status`. Optional
-integrations (Jev's act, Browser-Use's and Orgo's task surfaces, Orgo's computers) are listed
-only when configured: a box without an Orgo key has no computers, and advertising one would be
-the exact lie this repo exists to stop. `task` lists only the surfaces this box has.
+The browsers are hosted: Browser Use Cloud runs them (a browser per read, task or session, many at
+once), Browserbase is read's fallback. This host runs no Chromium and holds no browser lock.
+
+Two rules decide what is listed. fetch and status are always listed. Everything else is listed
+only when what it needs is configured: read with a hosted browser engine, session with Browser Use,
+act with Browser Use and a decision model (Jev), task per surface, computer with Orgo. A box without
+an Orgo key has no computers, and advertising one would be the exact lie this repo exists to stop.
 
 There is deliberately no provider catalog, no readiness walkthrough, no plan/verify/resume
 and no doctor variants. That surface is what made the previous system unusable: 29 tools
@@ -14,16 +16,21 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
+import json
 import os
 import time
 from typing import Any
 
 import httpx
 
-from . import browseruse, jev, orgo, steel
-from .guard import GUARD
-from .lock import LaneBusy, lane
-from .security import UnsafeUrl, require_public_addresses, require_public_web
+from . import browseruse, decide, orgo, stepper
+from .cdp import PAGE_JS, CdpError
+from .sessions import DEFAULT as DEFAULT_SESSION, Held, Sessions
+from .lock import lane
+from . import browserbase as bbase
+from . import cloud as bucloud
+from .security import UnsafeUrl, require_public_addresses, require_public_web, target_scope
 
 TEXT_LIMIT = int(os.getenv("BB_TEXT_LIMIT", "24000"))
 FETCH_TIMEOUT = float(os.getenv("BB_FETCH_TIMEOUT_SECONDS", "30"))
@@ -52,18 +59,27 @@ TOOLS: list[dict[str, Any]] = [
             "screenshot. Use when fetch returned nothing useful because the page renders with JavaScript.\n"
             "Do NOT use when: fetch already answered (this costs a browser slot), or the task needs "
             "clicking and typing rather than reading.\n"
-            "One browser runs at a time on this host; this call waits for the lane and then holds it.\n"
-            "The screenshot is a SECOND, independent page load, so on a page that changes between "
-            "loads the picture and the text may not agree, and that navigation is NOT pre-flighted. "
-            "Ask for it when the picture is the evidence.\n"
+            "Each read gets its own hosted browser (Browser Use Cloud, when status shows it), so reads run side by "
+            "side up to the plan's limit; there is no queue on this host. If that browser fails or the site blocks "
+            "it, engine=\"auto\" falls back to Browserbase when configured; the result's engine and fallback_reason "
+            "say which ran and why. Reads are public and logged out: never for a page that needs a session.\n"
+            "The screenshot is of the same page load the text came from. Ask for it when the picture is the evidence.\n"
             "Returns: text, title, links, status_code, and screenshot_base64 (JPEG) when asked for."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "url": {"type": "string", "description": "Public http(s) URL"},
-                "screenshot": {"type": "boolean", "description": "Also return a full-page JPEG. Costs a SECOND page load, and that one is NOT redirect-checked — ask for it only when the picture is the evidence.", "default": False},
+                "screenshot": {"type": "boolean", "description": "Also return a full-page JPEG of the page that was read.", "default": False},
                 "delay_ms": {"type": "integer", "minimum": 0, "maximum": 15000, "description": "Wait this long after load for late content."},
+                "engine": {"type": "string", "enum": ["auto", "browseruse", "browserbase"], "default": "auto",
+                           "description": "auto: Browser Use Cloud, then Browserbase as the fallback when it is configured. "
+                                          "browseruse: Browser Use only. browserbase: go straight to Browserbase (paid hours; "
+                                          "public, logged-out pages only)."},
+                "session_id": {"type": "string", "description": "Read in this session's browser, in a tab of its own (act's "
+                               "tab is left where it was). Hosted engine only"},
+                "region": {"type": "string", "enum": list(bbase.REGIONS),
+                           "description": "Browserbase only: read the page from this region. Implies engine=browserbase."},
             },
             "required": ["url"],
             "additionalProperties": False,
@@ -72,19 +88,24 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "session",
         "description": (
-            "Create, list or release a persistent browser session. A session keeps cookies and a "
-            "profile across calls, which is how logged-in work is done.\n"
-            "create -> returns session_id and the live view URL so a human can sign in once.\n"
-            "list   -> what is currently open. release -> closes it and frees the lane.\n"
-            "Creating or releasing a session restarts the browser: act's tab starts again at about:blank.\n"
-            "Do NOT create a session for one-off public reads; `read` is cheaper and releases itself."
+            "A browser of your own that stays open between calls, so act can work a page step by step and "
+            "several agents can each drive their own at the same time. Every session starts fresh and clean, "
+            "logged out, and is forgotten when it closes: this box keeps no logins and never uses a saved profile.\n"
+            "create  -> a new session with its browser open: returns session_id and live_url (a view of that browser).\n"
+            "list    -> the sessions open now.\n"
+            "release -> close the session's browser; the session is gone. An idle session closes itself after a few "
+            "minutes.\n"
+            "Calls on one session_id wait for each other; different sessions run side by side. live_url lets whoever "
+            "holds it drive that browser: keep it to yourself.\n"
+            "Do NOT create a session for a one-off read: read opens and closes its own browser. Do NOT use this for "
+            "logged-in work: it has no logins, by design."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "action": {"type": "string", "enum": ["create", "list", "release"]},
-                "session_id": {"type": "string", "description": "Required for release"},
-                "timeout_seconds": {"type": "integer", "minimum": 60, "maximum": 3600, "default": 900},
+                "session_id": {"type": "string", "description": "release: the session to close; without it, act's scratch browser"},
+                "name": {"type": "string", "maxLength": 80, "description": "create only: a label for your own bookkeeping"},
             },
             "required": ["action"],
             "additionalProperties": False,
@@ -104,9 +125,11 @@ TOOLS: list[dict[str, Any]] = [
             "a JS app, it was 10–60x faster and as or more accurate on all but search (see the README). Read each "
             "step's did: a click on a link marked (page does not exist) is a wrong pick, so say which one you meant.\n"
             "Use for clicking, typing, forms and multi-page flows. Do NOT use just to read a public page: fetch "
-            "or read is cheaper. The tab stays where you left it between calls; creating or releasing a session "
-            "restarts the browser and the tab starts again at about:blank.\n"
-            "Private and internal addresses are refused inside the browser itself, on every request and redirect.\n"
+            "or read is cheaper. The tab stays where you left it between calls. Give session_id to use a browser of your "
+            "own (see session); without it act uses one shared scratch browser that closes after a few idle minutes. "
+            "Every browser is fresh and logged out.\n"
+            "Private and internal addresses are refused: every URL is checked before it opens, and a step that lands off "
+            "the public web is undone and reported as refused.\n"
             "Returns: status (done | failed | needs_clarification | needs_confirmation), steps (what ran and how "
             "each went), url, title, and the page's text when read_page=true."
         ),
@@ -117,6 +140,8 @@ TOOLS: list[dict[str, Any]] = [
                 "pick": {"type": "string", "description": "Answer to needs_clarification: one option's pick"},
                 "confirm": {"type": "boolean", "description": "Answer to needs_confirmation"},
                 "read_page": {"type": "boolean", "default": False, "description": "Also return the page's readable text afterwards"},
+                "session_id": {"type": "string", "description": "Work in this session's browser (see session). Without it, "
+                               "act uses one shared scratch browser, fresh and forgotten when it closes"},
             },
             "additionalProperties": False,
         },
@@ -285,99 +310,216 @@ async def fetch(args: dict) -> dict:
     return {"status_code": response.status_code, "final_url": final, **_bounded(text)}
 
 
+# Signs a bot wall answered instead of the page. Short pages only: a long article that mentions
+# "captcha" is a page, not a wall.
+BLOCK_STATUSES = {403, 429, 503}
+BLOCK_MARKERS = ("just a moment", "attention required", "access denied", "verify you are human", "are you a robot",
+                 "captcha", "enable javascript and cookies", "request unsuccessful", "pardon our interruption",
+                 "checking your browser", "unusual traffic")
+_BB: dict[str, Any] = {}
+_BU: dict[str, Any] = {}
+
+
+def cloud_client() -> "bucloud.BrowserUseCloud | None":
+    """The Browser Use Cloud client for the key in the environment, or None. One per key, so its caps hold."""
+    key = os.getenv("BROWSER_USE_API_KEY", "").strip()
+    if not key:
+        return None
+    if _BU.get("key") != key:
+        _BU.update(key=key, client=bucloud.BrowserUseCloud.from_env())
+    return _BU["client"]
+
+
+def browserbase_client() -> "bbase.Browserbase | None":
+    """The Browserbase client for the key in the environment, or None. One per key, so its caps hold."""
+    key = os.getenv("BROWSERBASE_API_KEY", "").strip()
+    if not key:
+        return None
+    if _BB.get("key") != key:
+        _BB.update(key=key, client=bbase.Browserbase.from_env())
+    return _BB["client"]
+
+
+def looks_blocked(status_code: Any, text: str) -> bool:
+    if status_code in BLOCK_STATUSES:
+        return True
+    head = (text or "")[:2000].lower()
+    return len(text or "") < 2000 and any(marker in head for marker in BLOCK_MARKERS)
+
+
+async def _read_on_browserbase(client: "bbase.Browserbase", url: str, reason: str, region: str | None, started: float,
+                               *, want_shot: bool, engine_error: str | None = None) -> dict:
+    try:
+        page = await client.read(url, reason=reason, region=region)
+    except bbase.BrowserbaseUnavailable as exc:
+        _record("read", started, False, f"browserbase: {str(exc)[:80]}")
+        raise bbase.BrowserbaseUnavailable(f"{engine_error}; the Browserbase fallback also failed: {exc}" if engine_error else str(exc)) from None
+    out: dict[str, Any] = {
+        "title": page["title"], "final_url": page["final_url"], "status_code": None, "links": page["links"],
+        **_bounded(page["text"]),
+        "engine": "browserbase", "fallback_reason": reason, "why": page["why"], "region": page["region"],
+        "browserbase_seconds": page["seconds"],
+    }
+    if engine_error:
+        out["engine_error"] = engine_error
+    if want_shot:
+        out["screenshot_note"] = "not taken: Browserbase reads return text and links only"
+    _record("read", started, True, f"browserbase ({reason})")
+    return out
+
+
 async def read(args: dict) -> dict:
     started = time.monotonic()
+    region = args.get("region")
+    engine = "browserbase" if region else (args.get("engine") or "auto")
+    if engine not in ("auto", "browseruse", "browserbase"):
+        raise ValueError("engine must be auto, browseruse or browserbase")
+    if args.get("session_id"):
+        store = sessions_store()
+        if store is None or engine not in ("auto", "browseruse"):
+            raise ValueError("session_id reads need Browser Use Cloud (BROWSER_USE_API_KEY) and engine auto or browseruse")
+        return await _read_in_session(store, args, started)
+    client = browserbase_client() if engine in ("auto", "browserbase") else None
+    cloud = cloud_client() if engine in ("auto", "browseruse") else None
+    if engine == "browseruse" and cloud is None:
+        raise bucloud.CloudUnavailable("Browser Use is not configured on this box (BROWSER_USE_API_KEY is unset)")
+    if cloud is not None:
+        return await _read_on_cloud(cloud, client, args, started)
+    if engine == "browserbase" and client is None:
+        raise bbase.BrowserbaseUnavailable("Browserbase is not configured on this box (BROWSERBASE_API_KEY is unset); "
+                                           "use engine=\"auto\"")
+    if client is None:
+        raise bucloud.CloudUnavailable("no browser engine is configured: set BROWSER_USE_API_KEY (or BROWSERBASE_API_KEY)")
+    url = await safe_target(args["url"])
+    reason = "region" if region else "requested" if engine == "browserbase" else "no_browser_use"
+    return await _read_on_browserbase(client, url, reason, region, started, want_shot=bool(args.get("screenshot")))
+
+
+async def _read_on_cloud(cloud: "bucloud.BrowserUseCloud", client: "bbase.Browserbase | None", args: dict,
+                         started: float) -> dict:
     want_shot = bool(args.get("screenshot"))
-    delay = args.get("delay_ms")
-    # Resolve the redirect chain BEFORE the browser sees it, and hand Steel the cleared
-    # final URL. Steel's metadata.urlSource echoes the request, so the browser's own
-    # landing address is not observable from here; this is the only pre-flight there is.
-    async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, headers={"User-Agent": USER_AGENT}) as client:
-        try:
-            _, url = await follow_public_chain(client, args["url"], method="HEAD")
-        except UnsafeUrl:
-            _record("read", started, False, "refused: left the public web")
+    url = await safe_target(args["url"])
+    try:
+        page = await cloud.read(url, screenshot=want_shot, delay_ms=int(args.get("delay_ms") or 0))
+    except bucloud.CloudUnavailable as exc:
+        if client is None:
+            _record("read", started, False, f"browseruse: {str(exc)[:80]}")
             raise
-        except httpx.HTTPError:
-            # The site refused our pre-flight. We learned nothing, so fall back to the URL as
-            # written — already validated — rather than failing a page that only talks to browsers.
-            url = await safe_target(args["url"])
-    async with lane(label=f"read {url[:60]}"):
-        payload = await steel.scrape(url, delay=delay)
-        # The screenshot is a separate navigation inside Chromium. It follows its own
-        # redirects and Steel reports no landing URL, so the pre-flight above does not
-        # reach it — verified 2026-09-22: /v1/screenshot photographed Steel's own API
-        # through a redirect. The host egress rule is what covers this, not this code.
-        # The picture is a second navigation that only the in-browser guard can vet.
-        shot = await steel.screenshot(url, delay=delay) if want_shot and GUARD.up else None
-    content = payload.get("content") or {}
-    meta = payload.get("metadata") or {}
-    text = content.get("markdown") or strip_html(content.get("html") or "")
-    out: dict[str, Any] = {
-        "title": meta.get("title"),
-        "final_url": url,
-        "status_code": meta.get("statusCode"),
-        "links": [link.get("url") for link in (payload.get("links") or [])[:50] if link.get("url")],
-        **_bounded(text or ""),
-    }
-    if want_shot and not shot:
-        out["screenshot_note"] = ("withheld: the in-browser guard is not attached, and the screenshot is a second "
-                                  "page load that only it can vet. status shows the guard.")
+        return await _read_on_browserbase(client, url, "engine_down", None, started, want_shot=want_shot,
+                                          engine_error=f"Browser Use: {exc}")
+    shot = page.pop("screenshot", None)
+    out: dict[str, Any] = {"title": page["title"], "final_url": page["final_url"], "status_code": page["status_code"],
+                           "links": page["links"], **_bounded(page["text"]), "engine": "browseruse",
+                           "browser_seconds": page["seconds"]}
     if shot:
         out["screenshot_media_type"] = "image/jpeg"
         out["screenshot_bytes"] = len(shot)
         out["screenshot_base64"] = base64.b64encode(shot).decode()
-    _record("read", started, True, str(out.get("status_code") or ""))
+    if client is not None and looks_blocked(out.get("status_code"), out.get("text") or ""):
+        try:
+            return await _read_on_browserbase(client, out["final_url"], "blocked", None, started, want_shot=want_shot)
+        except bbase.BrowserbaseUnavailable as exc:
+            out["fallback_error"] = f"the page looked blocked and the Browserbase fallback failed: {exc}"
+    _record("read", started, True, f"browseruse {out.get('status_code') or ''}".strip())
     return out
+
+
+async def _read_in_session(store: Sessions, args: dict, started: float) -> dict:
+    url = await safe_target(args["url"])
+    held = store.get(args["session_id"])
+    want_shot = bool(args.get("screenshot"))
+    async with holding(held):
+        await store.ensure_open(held)
+        cdp = held.cdp
+        try:
+            target = (await cdp.send("Target.createTarget", {"url": "about:blank"}))["targetId"]
+            try:
+                tab = (await cdp.send("Target.attachToTarget", {"targetId": target, "flatten": True}))["sessionId"]
+                page = await cdp.open_and_read(url, delay_ms=int(args.get("delay_ms") or 0), screenshot=want_shot, session=tab)
+            finally:
+                with contextlib.suppress(Exception):
+                    await cdp.send("Target.closeTarget", {"targetId": target})
+        except CdpError as exc:
+            await store._close(held)
+            _record("read", started, False, "session browser lost")
+            raise bucloud.CloudUnavailable(f"the session's browser stopped ({exc}); call read again") from None
+        held.last_used = time.monotonic()
+    if page.get("url") and not page["url"].startswith("about:") and target_scope(page["url"]) != "public_web":
+        raise UnsafeUrl("the page led off the public web")
+    shot = page.pop("screenshot", None)
+    out: dict[str, Any] = {"title": page.get("title"), "final_url": page.get("url"), "status_code": page.get("status_code"),
+                           "links": page.get("links") or [], **_bounded(page.get("text") or ""), "engine": "browseruse",
+                           "session_id": held.session_id}
+    if shot:
+        out.update(screenshot_media_type="image/jpeg", screenshot_bytes=len(shot), screenshot_base64=base64.b64encode(shot).decode())
+    _record("read", started, True, f"session {out.get('status_code') or ''}".strip())
+    return out
+
+
+_SESSIONS: dict[str, Any] = {}
+SESSION_WAIT = float(os.getenv("BB_SESSION_WAIT_SECONDS", "30"))
+
+
+def sessions_store() -> Sessions | None:
+    """Sessions live on Browser Use Cloud when it is configured; one store per client."""
+    cloud = cloud_client()
+    if cloud is None:
+        return None
+    bb = browserbase_client()
+    if _SESSIONS.get("cloud") is not cloud or _SESSIONS.get("bb") is not bb:
+        _SESSIONS.update(cloud=cloud, bb=bb, store=Sessions(cloud, fallback=bb))
+    return _SESSIONS["store"]
+
+
+def hosted_act() -> bool:
+    return cloud_client() is not None and decide.configured()
+
+
+@contextlib.asynccontextmanager
+async def holding(held: Held):
+    """A session's lock, waited for briefly: a long task on the session answers busy rather than hanging the caller."""
+    try:
+        await asyncio.wait_for(held.lock.acquire(), SESSION_WAIT)
+    except asyncio.TimeoutError:
+        raise ValueError(f"session {held.session_id} is busy (another call is using its browser); try again shortly") from None
+    try:
+        yield held
+    finally:
+        held.lock.release()
+
+
+async def _session_hosted(store: Sessions, args: dict, started: float) -> dict:
+    action = args["action"]
+    if action == "create":
+        held = store.create(args.get("name"))
+        try:
+            async with holding(held):
+                await store.ensure_open(held)
+        except BaseException:
+            store.items.pop(held.session_id, None)
+            raise
+        _record("session", started, True, "create")
+        return {"session_id": held.session_id, "name": held.name, "live_url": held.live_url, "engine": held.engine,
+                "note": "A fresh, logged-out browser. Pass this session_id to act and read; release it when done."}
+    if action == "list":
+        _record("session", started, True, "list")
+        return {"sessions": store.listing()}
+    held = store.get(args.get("session_id"))
+    if held.lock.locked():
+        await asyncio.wait_for(held.lock.acquire(), SESSION_WAIT)
+        held.lock.release()
+    was_open = await store.release(held.session_id)
+    _record("session", started, True, "release")
+    return {"released": True, "session_id": held.session_id, "was_open": was_open}
 
 
 async def session(args: dict) -> dict:
     started = time.monotonic()
     action = args["action"]
-    if action == "create":
-        # Creating a session relaunches Steel's Chromium, killing whatever read or act is mid-step.
-        async with lane(label="session create"):
-            generation, guarded = GUARD.generation, GUARD.up
-            created = await steel.create_session(timeout_seconds=int(args.get("timeout_seconds", 900)))
-            # The relaunched browser is unguarded until the guard reattaches: hold the lane till then.
-            reattached = await GUARD.reattached_after(generation) if guarded else False
-        _record("session", started, True, "create")
-        return {
-            "session_id": created.get("id") or created.get("sessionId"),
-            "status": created.get("status"),
-            # The API image serves the DevTools inspector; sessionViewerUrl points at the
-            # separate Steel UI image, which this box does not run. Report what exists.
-            "devtools_url": created.get("debuggerUrl"),
-            "cdp_url": steel.CDP,
-            "guard_reattached": reattached,
-            "note": (
-                "Nothing here is published beyond loopback. To sign in by hand, tunnel first — "
-                "ssh -L 3000:127.0.0.1:3000 <host> — then open devtools_url and log in once. "
-                "Later read calls reuse the cookies until the session is released."
-            ),
-        }
-    if action == "list":
-        listed = await steel.sessions()
-        rows = listed.get("sessions") if isinstance(listed, dict) else listed
-        _record("session", started, True, "list")
-        return {
-            "sessions": [
-                {
-                    "session_id": row.get("id"),
-                    "status": row.get("status"),
-                    "created_at": row.get("createdAt"),
-                    "duration_ms": row.get("duration"),
-                }
-                for row in (rows or [])
-                if isinstance(row, dict)
-            ]
-        }
-    async with lane(label="session release"):  # relaunches Chromium too
-        generation, guarded = GUARD.generation, GUARD.up
-        released = await steel.release_session(args.get("session_id"))
-        reattached = await GUARD.reattached_after(generation) if guarded else False
-    _record("session", started, True, "release")
-    return {"released": True, "detail": released, "guard_reattached": reattached}
+    store = sessions_store()
+    if store is not None:
+        return await _session_hosted(store, args, started)
+    raise bucloud.CloudUnavailable("sessions run on Browser Use Cloud: set BROWSER_USE_API_KEY")
 
 
 async def act(args: dict) -> dict:
@@ -386,27 +528,43 @@ async def act(args: dict) -> dict:
     if len(given) != 1:
         raise ValueError("act takes exactly one of: command, pick (answering a clarification), confirm (answering a confirmation)")
     kind = given[0]
-    async with lane(label=f"act {str(args[kind])[:50]}"):
-        await GUARD.wait_ready()
+    if hosted_act():
+        return await _act_hosted(sessions_store(), args, kind, started)
+    raise decide.DecisionUnavailable("act needs Browser Use Cloud and a decision model: set BROWSER_USE_API_KEY and "
+                                     "TYPESAFE_API_KEY")
+
+
+async def _act_hosted(store: Sessions, args: dict, kind: str, started: float) -> dict:
+    """act on the session's hosted browser: Jev picks each element, the box does it over CDP."""
+    held = store.get(args.get("session_id"))
+    async with holding(held):
+        pending = held.pending
+        if kind == "command":
+            steps, pending, held.pending = stepper.split_steps(args["command"]), None, None
+        else:
+            if not pending:
+                raise ValueError("nothing is waiting for an answer on this session: send a command")
+            if time.monotonic() - pending["at"] > stepper.PENDING_SECONDS:
+                held.pending = None
+                raise ValueError("that question expired; send the command again")
+            wanted = "pick" if pending["kind"] == "clarify" else "confirm"
+            if kind != wanted:
+                raise ValueError(f"the waiting question is answered with {wanted}")
+            steps = []
+        await store.ensure_open(held)
+        engine = stepper.Stepper(held.cdp, held.page, check_url=safe_target)
         try:
-            if kind == "command":
-                raw = await jev.command(args["command"])
-            elif kind == "pick":
-                raw = await jev.pick(args["pick"])
-            else:
-                raw = await jev.confirm(bool(args["confirm"]))
-        except jev.JevUnavailable:
-            # A step still running inside Jev would otherwise go on holding the page.
-            await jev.cancel()
-            _record("act", started, False, "jev unavailable")
-            raise
-        out = jev.summarize(raw)
-        if args.get("read_page") and out["status"] in ("done", "failed"):
-            page = await jev.read(TEXT_LIMIT)
-            if page is None:
-                out["text_note"] = "this Jev build cannot read page text; call read on the url (a fresh load of it)"
-            else:
-                out.update(_bounded(page.get("text") or ""))
+            out, held.pending = await engine.run(steps, pending=pending, pick=args.get("pick"), confirm=args.get("confirm"))
+            if args.get("read_page") and out["status"] in ("done", "failed"):
+                page = await held.cdp.send("Runtime.evaluate", {"expression": PAGE_JS, "returnByValue": True}, session=held.page)
+                out.update(_bounded(json.loads(page["result"]["value"]).get("text") or ""))
+        except CdpError as exc:
+            # The hosted browser went away under us (its own timeout, or the network): start clean next call.
+            await store._close(held)
+            _record("act", started, False, "browser lost")
+            raise bucloud.CloudUnavailable(f"the session's browser stopped ({exc}); call act again to open a fresh one") from None
+        held.last_used = time.monotonic()
+        out.update(session_id=held.session_id, engine=held.engine or "browseruse", live_url=held.live_url)
     _record("act", started, out["status"] == "done", out["status"])
     return out
 
@@ -502,26 +660,9 @@ async def _computer_task(args: dict) -> dict:
     return {"surface": "computer", "computer_id": cid, "computer": how, **result}
 
 
-async def _guard_lost(generation: int) -> None:
-    while GUARD.up and GUARD.generation == generation:
-        await asyncio.sleep(0.5)
-
-
-async def _stop_browser_agent() -> Any:
-    """Stop the agent and wait until it has: the browser lane must not be released while it is
-    still driving the browser. Its /cancel call is bounded (30 s), so this cannot hold forever."""
-    stopping = asyncio.ensure_future(browseruse.cancel())
-    while not stopping.done():
-        try:
-            await asyncio.shield(stopping)
-        except asyncio.CancelledError:
-            continue
-    return stopping.result()
-
-
 async def _cancel_browser_task() -> dict:
-    """No lane: the lane is exactly what the running task holds. The container answers once the
-    agent is dead and its tabs are closed; the task's own call then returns and frees the lane."""
+    """Stops every browser task this box is running. Each task's own call then answers with status
+    cancelled and what it did, and its hosted browser is stopped."""
     started = time.monotonic()
     stopped = await browseruse.cancel()
     cancelled = bool(stopped and stopped.get("cancelled"))
@@ -533,50 +674,57 @@ async def _cancel_browser_task() -> dict:
 
 
 async def _browser_task(args: dict) -> dict:
+    cloud = cloud_client()
+    if cloud is not None:
+        return await _browser_task_hosted(cloud, args)
+    raise bucloud.CloudUnavailable("browser tasks run on Browser Use Cloud: set BROWSER_USE_API_KEY")
+
+
+async def _browser_task_hosted(cloud: "bucloud.BrowserUseCloud", args: dict) -> dict:
+    """The task gets a hosted browser of its own: no lane, no shared tab, nothing to guard on this host.
+    Tasks run side by side up to the agent's BU_PARALLEL and the plan's browser ceiling."""
+    import uuid
     started = time.monotonic()
-    goal = args["goal"]
-    async with lane(label=f"task {goal[:40]}"):
-        await GUARD.wait_ready()
-        running = asyncio.create_task(browseruse.run(goal, int(args.get("max_steps", 25)), int(args.get("timeout_seconds", 300))))
-        watching = asyncio.create_task(_guard_lost(GUARD.generation))
-        try:
-            done, _ = await asyncio.wait({running, watching}, return_when=asyncio.FIRST_COMPLETED)
-            if running in done:
-                result = running.result()
-            else:
-                # The guard fails open: an agent left running now would be browsing unguarded.
-                # Stop it first; its own call then answers with what it did before it was stopped.
-                await _stop_browser_agent()
-                try:
-                    result = await asyncio.wait_for(running, 30)
-                except Exception:
-                    result = {}
-                result = {**result, "status": "stopped", "reason": "the in-browser guard detached mid-task, so the "
-                          "task was stopped rather than left running unguarded; status shows the guard"}
-        except BaseException:
-            # The caller gave up (a cancelled tool call), the HTTP call timed out, or it failed:
-            # whatever it was, the agent must be dead before this lane is released. Stop it before
-            # dropping our own call to it, so the container is never left serving nobody.
-            await _stop_browser_agent()
-            running.cancel()
-            _record("task", started, False, "browser: stopped")
-            raise
-        finally:
-            watching.cancel()
+    timeout = int(args.get("timeout_seconds", 300))
+    task_id = uuid.uuid4().hex[:12]
+    minutes = timeout // 60 + 2
+    engine, fallback_error = "browseruse", None
+    try:
+        async with contextlib.AsyncExitStack() as stack:
+            try:
+                ws, info = await stack.enter_async_context(cloud.hosted(minutes=minutes))
+            except bucloud.CloudUnavailable as exc:
+                # Emergency lane: Browser Use could not open a browser, so the task runs on Browserbase.
+                bb = browserbase_client()
+                if bb is None:
+                    raise
+                engine, fallback_error = "browserbase", str(exc)
+                ws, info = await stack.enter_async_context(bb.hosted(minutes=minutes))
+            try:
+                result = await browseruse.run(args["goal"], int(args.get("max_steps", 25)), timeout,
+                                              cdp_url=ws, task_id=task_id)
+            except BaseException:
+                # The caller gave up or the call failed: the agent must be dead before its browser is stopped.
+                await browseruse.cancel(task_id)
+                raise
+    except BaseException:
+        _record("task", started, False, "browser: stopped")
+        raise
+    result.pop("tabs_closed", None)
     cost = result.get("estimated_cost_usd")
     _record("task", started, result.get("status") == "done", f"browser: {result.get('status')}", cost_usd=cost)
-    return {"surface": "browser", **result}
+    return {"surface": "browser", "engine": engine, **({"fallback_reason": fallback_error} if fallback_error else {}), **result}
 
 
 TASK_SURFACES: dict[str, tuple[Any, str]] = {
-    "browser": (browseruse.configured, (
-        "surface=\"browser\": Browser-Use works the goal in this box's browser, with a model choosing each "
-        "step (one model call per step; a few steps take ~10-40 s). It gets a tab of its own and never touches "
-        "act's tab. Private and internal addresses are refused inside the browser. Its tab is closed when it "
-        "finishes: to look at the last page again, read final_url. Returns status (done | failed | incomplete | "
-        "timed_out | cancelled | stopped), answer, steps, urls, final_url, tokens and estimated_cost_usd.\n"
-        "It holds the browser until it finishes, even if you stop waiting: this endpoint cannot hear a client give "
-        "up. task(cancel=true) stops it, and the stopped task still reports what it did.")),
+    "browser": (lambda: browseruse.configured() and cloud_client() is not None, (
+        "surface=\"browser\": Browser-Use works the goal in a hosted browser of its own, with a model choosing each "
+        "step (one model call per step; a few steps take ~10-40 s). Several tasks run side by side, each in "
+        "a fresh, logged-out browser. Its browser is stopped when it finishes: to look at the last page again, read "
+        "final_url. Returns status (done | failed | incomplete | timed_out | cancelled | stopped), answer, steps, "
+        "urls, final_url, tokens and estimated_cost_usd.\n"
+        "It runs until it finishes even if you stop waiting: this endpoint cannot hear a client give up. "
+        "task(cancel=true) stops every running browser task, and each still reports what it did.")),
     "computer": (orgo.configured, (
         "surface=\"computer\": Orgo's hosted computer-use agent (Claude) works an Orgo desktop until the goal is "
         "done. Orgo ignores max_steps and caps its loop at 250 steps; timeout_seconds is the real bound, and "
@@ -604,7 +752,13 @@ def _task_card(card: dict[str, Any]) -> dict[str, Any]:
 
 
 # Optional integrations and the check that decides whether they are listed at all.
-OPTIONAL: dict[str, Any] = {"act": jev.configured, "computer": orgo.configured, "task": lambda: bool(task_surfaces())}
+OPTIONAL: dict[str, Any] = {
+    "read": lambda: cloud_client() is not None or browserbase_client() is not None,
+    "session": lambda: cloud_client() is not None,
+    "act": hosted_act,
+    "computer": orgo.configured,
+    "task": lambda: bool(task_surfaces()),
+}
 
 
 def offered_tools() -> list[dict[str, Any]]:
@@ -614,60 +768,48 @@ def offered_tools() -> list[dict[str, Any]]:
 
 async def status(_args: dict) -> dict:
     components: list[dict[str, Any]] = []
-    try:
-        components.append({"name": "steel (the browser)", "up": True, "detail": await steel.health()})
-    except Exception as exc:
-        components.append({"name": "steel (the browser)", "up": False, "detail": str(exc)[:200]})
-    lane_free: bool | None = True
-    lane_detail = "free"
-    try:
-        async with lane(wait_seconds=0, label="status probe"):
-            pass
-    except LaneBusy:
-        lane_free, lane_detail = False, "busy — one browser runs at a time on this host"
-    except OSError as exc:
-        # status is the one tool that must never fail: it is what you call when
-        # something else already did. A broken lock is reported, not raised.
-        lane_free, lane_detail = None, f"unknown — the lane lock is unusable: {exc}"
-    browser_up = components[0]["up"] and lane_free is not None
-
     unavailable: list[dict[str, str]] = []
-    if not browser_up:
-        why = "the browser is down: " + str(components[0]["detail"])[:120]
-        unavailable += [{"tool": t, "reason": why} for t in ["read", "session"] + (["act"] if jev.configured() else [])]
-        if browseruse.configured():
+    cloud, cloud_up = cloud_client(), False
+    if cloud is not None:
+        row = await cloud.status()
+        cloud_up = row.pop("up")
+        components.append({"name": "browser-use cloud (the browsers)", "up": cloud_up, "detail": row})
+        if not cloud_up:
+            why = "Browser Use Cloud is not usable: " + str(row.get("problem") or row)[:120]
+            unavailable += [{"tool": t, "reason": why} for t in ("session", "act")]
             unavailable.append({"tool": "task", "surface": "browser", "reason": why})
-    components.append({"name": "guard (in-browser URL check)", "up": GUARD.up, "detail": GUARD.health()})
-    if not GUARD.up:
-        why = "the in-browser guard is not attached: " + str(GUARD.last_error)[:100]
-        if jev.configured():
-            unavailable.append({"tool": "act", "reason": why})
-        if browseruse.configured():
-            unavailable.append({"tool": "task", "surface": "browser", "reason": why})
-    if jev.configured():
-        try:
-            detail = await jev.health()
-            components.append({"name": "jev (act: step decisions)", "up": not detail["paused"], "detail": detail})
-            if detail["paused"]:
-                unavailable.append({"tool": "act", "reason": "agent-jev is paused"})
-        except Exception as exc:
-            components.append({"name": "jev (act: step decisions)", "up": False, "detail": str(exc)[:200]})
-            unavailable.append({"tool": "act", "reason": "agent-jev is down: " + str(exc)[:120]})
     else:
-        components.append({"name": "jev (act: step decisions)", "up": False, "configured": False,
-                           "detail": "not configured — set BB_JEV_URL and BB_JEV_TOKEN to offer the act tool"})
+        components.append({"name": "browser-use cloud (the browsers)", "up": False, "configured": False,
+                           "detail": "not configured — set BROWSER_USE_API_KEY: read, session, act and task run on its browsers"})
+    client, base_up = browserbase_client(), False
+    if client is not None:
+        row = await client.status()
+        base_up = row.pop("up")
+        components.append({"name": "browserbase (the emergency lane)", "up": base_up, "detail": row})
+    else:
+        components.append({"name": "browserbase (the emergency lane)", "up": False, "configured": False,
+                           "detail": "not configured — set BROWSERBASE_API_KEY so read, act and task have an emergency browser when Browser Use cannot serve"})
+    if (cloud is not None or client is not None) and not (cloud_up or base_up):
+        unavailable.append({"tool": "read", "reason": "no hosted browser engine is usable right now"})
+    if decide.configured():
+        components.append({"name": "decision model (act: which element)", "up": True,
+                           "detail": {"url": os.getenv("BB_DECISION_URL") or decide.URL,
+                                      "model": os.getenv("BB_DECISION_MODEL") or "jev-latest"}})
+    else:
+        components.append({"name": "decision model (act: which element)", "up": False, "configured": False,
+                           "detail": "not configured — set TYPESAFE_API_KEY (with BROWSER_USE_API_KEY) to offer act"})
     if browseruse.configured():
         try:
             detail = await browseruse.health()
             up = detail.pop("up")
-            components.append({"name": "browser-use (task on the browser)", "up": up, "detail": detail})
+            components.append({"name": "browser-use agent (task on the browser)", "up": up, "detail": detail})
             if not up:
                 unavailable.append({"tool": "task", "surface": "browser", "reason": detail["problem"]})
         except Exception as exc:
-            components.append({"name": "browser-use (task on the browser)", "up": False, "detail": str(exc)[:200]})
+            components.append({"name": "browser-use agent (task on the browser)", "up": False, "detail": str(exc)[:200]})
             unavailable.append({"tool": "task", "surface": "browser", "reason": "agent-browseruse is down: " + str(exc)[:120]})
     else:
-        components.append({"name": "browser-use (task on the browser)", "up": False, "configured": False,
+        components.append({"name": "browser-use agent (task on the browser)", "up": False, "configured": False,
                            "detail": "not configured — add browseruse to COMPOSE_PROFILES and set BB_BROWSERUSE_URL, "
                                      "BB_BROWSERUSE_TOKEN and OPENROUTER_API_KEY to offer task(surface=\"browser\")"})
     if orgo.configured():
@@ -682,6 +824,7 @@ async def status(_args: dict) -> dict:
                            "detail": "not configured — set ORGO_API_KEY to offer the computer tool and task(surface=\"computer\")"})
 
     offered = [t["name"] for t in offered_tools()]
+    unavailable = [u for u in unavailable if u["tool"] in offered]
     # A tool is down when nothing of it works: task stays up while one of its surfaces does.
     down = {item["tool"] for item in unavailable if "surface" not in item}
     if "task" in offered and set(task_surfaces()) <= {i["surface"] for i in unavailable if i["tool"] == "task" and "surface" in i}:
@@ -689,7 +832,6 @@ async def status(_args: dict) -> dict:
     spent = [c["cost_usd"] for c in _CALLS if c.get("cost_usd") is not None]
     return {
         "components": components,
-        "browser_lane": lane_detail,
         "tools_working_now": [t for t in offered if t not in down],
         "tools_unavailable": unavailable,
         "recent_calls": list(reversed(_CALLS[-10:])),

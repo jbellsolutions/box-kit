@@ -1,5 +1,8 @@
 # Browser fleet: milestones
 
+> **Superseded in part (Justin, 2026-10-19; DECISIONS "guardrails, not rules").** Milestones and tests that
+> build red-line refusals, the host table or people-list blocks now build guardrail checks that warn and ask.
+
 Status: draft against the research of 2026-10-10, revised once against the scenario stress tests in [research/scenarios/](research/scenarios/) (S04 to S14; §9 maps each gap to the place it was applied), and read against DECISIONS.md as revised the same day (D2, D3, D5, D11 to D14, D17 and the new D18). **Nothing here is built.** M0 (research) is the only finished milestone. Everything else describes a target.
 
 This file only sequences the work. The design lives in [DECISIONS.md](DECISIONS.md). Where this file and the verification reports disagree, the verification reports and DECISIONS win.
@@ -76,7 +79,7 @@ These come from D2, D13 and D14. The fleet refuses them in code, not by prompt (
 - The same or near-identical post across client accounts.
 - AI auto-replies on X without X's written approval. Keyword-triggered auto-replies on X.
 - Fake accounts, ban evasion, accounts for clients without their express permission.
-- Scraping platforms for lead data or for lists of people (followers, likers, members, search results). Competitive benchmarking on X.
+- Competitive benchmarking on X. (Scraping lead data and people lists was removed from this list by Justin, 2026-10-19.)
 - Driving x.com with an agent-driven browser (V:social-platforms SP-1). A human in the viewer is the only browser path on X.
 - Any LinkedIn action by browser automation. Agents draft, a person sends (CHARTER.md red lines; V:social-platforms SP-8).
 - An agent typing a credential. An agent solving a CAPTCHA on a client account.

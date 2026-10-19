@@ -88,7 +88,7 @@
       "post": {
         "operationId": "scrape",
         "summary": "One public URL to markdown, text, HTML or links",
-        "description": "Read one public web page and return its content as markdown (default), plain text, raw HTML, or its list of links. Use it for any single URL you already have.\nIt climbs a ladder and stops at the first rung that returns the real page: a free direct fetch first, then paid unblockers and finally a real browser, never spending past max_cost_usd (default $0.05). rungs_tried shows each rung, its cost and why it was left. On this box today only the free fetch is wired: a blocked, challenge or JavaScript-only page comes back with `blocked` saying what stopped it.\nDo NOT use it to search (use websearch), to walk a whole site (crawl), or for private addresses: loopback, private, link-local and file targets are refused, on every redirect too.\nReturns: content (or links), title, description, status_code, final_url, rung, rungs_tried, blocked when the page was not the real page, job_id and cost_usd.",
+        "description": "Read one public web page and return its content as markdown (default), plain text, raw HTML, or its list of links. Use it for any single URL you already have.\nIt runs the free direct fetch at once. Paid rungs never run without approval: when the free fetch is blocked, gets a challenge or a JavaScript-only page, the result says what stopped it (`blocked`) and carries a `plan` for the paid ladder (Firecrawl first; then Decodo, Bright Data, Firecrawl's browser, Hyperbrowser and browser-box as they are wired) with its worst-case cost. Show that plan to the user; on a yes, call execute with its plan_id and approve=true.\nDo NOT use it to search or to walk a whole site (make a plan with kind search or crawl), or for private addresses: loopback, private, link-local and file targets are refused, on every redirect too.\nReturns: content (or links), title, description, status_code, final_url, rung, rungs_tried, blocked and plan when the page was not the real page, job_id and cost_usd (always 0: the free rung).",
         "tags": [
           "tools"
         ],
@@ -273,6 +273,439 @@
                 },
                 "required": [
                   "action"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sources": {
+      "post": {
+        "operationId": "sources",
+        "summary": "Every source that could serve a need, tier by tier, and whether each can run (free)",
+        "description": "Step 2 of the four-step workflow on its own: survey every source that could serve a request, without planning or spending anything. Tier 1 is Firecrawl (its Alexandria providers, read live: price, page size, pagination, inputs, terms, field fit), MoltSets and DiscoLike; tier 2 Decodo and Bright Data; tier 3 Apify, the expensive backup's backup. Each source says whether it can run on this box and, if not, why.\nUse it to answer \"where could this data come from?\". To get the data, call plan instead: it runs the same survey and turns it into a priced game plan.\nFree.",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the provider it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its provider is not configured)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "request": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "description": "What is wanted, in plain words: \"roofing contractors in Austin TX with phone and website\""
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "pull",
+                      "search",
+                      "scrape",
+                      "crawl",
+                      "extract"
+                    ],
+                    "description": "pull (a list of records), search, scrape, crawl or extract; inferred when left out"
+                  },
+                  "entity": {
+                    "type": "string",
+                    "enum": [
+                      "business",
+                      "person",
+                      "property",
+                      "any"
+                    ],
+                    "description": "pull: what each record is (default business)"
+                  },
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 20,
+                    "description": "pull: fields each record needs, e.g. [\"phone\", \"website\"]; lanes are ranked by how many they return"
+                  },
+                  "queries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 20,
+                    "description": "pull/search: what to search for (default: the request); each is crossed with every place in geo"
+                  },
+                  "geo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "description": "pull: places to cover, e.g. [\"Austin, TX\", \"Dallas, TX\"]; each is a cell of the pull"
+                  },
+                  "sources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 10,
+                    "description": "Sources the user named (e.g. \"bbb\", \"bing\", \"discolike\"): the plan uses only these, and says so when one cannot run"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "scrape/crawl: the page or site"
+                  },
+                  "urls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "description": "extract: the pages"
+                  },
+                  "schema": {
+                    "type": "object",
+                    "description": "extract (or scrape): JSON schema of what to pull out"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "description": "extract: what to pull out, in words"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plan": {
+      "post": {
+        "operationId": "plan",
+        "summary": "Steps 1-3: take a request, survey every source, return a priced game plan to approve",
+        "description": "Every paid pull starts here, whatever door it comes through. plan takes the request (step 1), surveys every source across the tiers and lists them all (step 2): for Firecrawl that means every tool in the Alexandria categories the request is about, read with its contract. Then it narrows them to a game plan (step 3): lanes ranked by records per credit x coverage x field fit, each proven by a preflight call (a lane whose preflight returns none of the entity is dropped and the next one tried), split into query x place cells and pages within the skill's caps, the dedupe keys, and the worst-case cost in credits and dollars against the live Firecrawl balance. A source the user named is honoured.\nNothing but the preflight is spent (at most 25 credits, and never more than max_cost_usd). The plan waits for approval and expires after 24 hours.\nThen: SHOW THE WHOLE PLAN TO THE USER and wait for a yes. Only then call execute with its plan_id and approve=true. Never approve a plan on the user's behalf.\naction=get returns a plan, action=list recent plans, action=cancel withdraws one (stopping its job).",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the provider it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its provider is not configured)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "get",
+                      "list",
+                      "cancel"
+                    ],
+                    "default": "new"
+                  },
+                  "plan_id": {
+                    "type": "string",
+                    "description": "get/cancel: which plan"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "preparing",
+                      "awaiting_approval",
+                      "approved",
+                      "executing",
+                      "done",
+                      "expired",
+                      "cancelled"
+                    ],
+                    "description": "list: only plans in this status"
+                  },
+                  "request": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "description": "What is wanted, in plain words: \"roofing contractors in Austin TX with phone and website\""
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "pull",
+                      "search",
+                      "scrape",
+                      "crawl",
+                      "extract"
+                    ],
+                    "description": "pull (a list of records), search, scrape, crawl or extract; inferred when left out"
+                  },
+                  "entity": {
+                    "type": "string",
+                    "enum": [
+                      "business",
+                      "person",
+                      "property",
+                      "any"
+                    ],
+                    "description": "pull: what each record is (default business)"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50000,
+                    "description": "pull: how many unique records are wanted (default 100)"
+                  },
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 20,
+                    "description": "pull: fields each record needs, e.g. [\"phone\", \"website\"]; lanes are ranked by how many they return"
+                  },
+                  "queries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 20,
+                    "description": "pull/search: what to search for (default: the request); each is crossed with every place in geo"
+                  },
+                  "geo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "description": "pull: places to cover, e.g. [\"Austin, TX\", \"Dallas, TX\"]; each is a cell of the pull"
+                  },
+                  "sources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 10,
+                    "description": "Sources the user named (e.g. \"bbb\", \"bing\", \"discolike\"): the plan uses only these, and says so when one cannot run"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "scrape/crawl: the page or site"
+                  },
+                  "urls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "description": "extract: the pages"
+                  },
+                  "schema": {
+                    "type": "object",
+                    "description": "extract (or scrape): JSON schema of what to pull out"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "description": "extract: what to pull out, in words"
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "markdown",
+                      "html",
+                      "links"
+                    ],
+                    "default": "markdown"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000,
+                    "description": "search: results per query; crawl: most pages"
+                  },
+                  "max_cost_usd": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 500,
+                    "description": "Most the whole plan may spend, preflight included (default: the estimate plus 20%)"
+                  },
+                  "preflight": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "pull: spend one real call per lane (at most 25 credits) to prove it returns the entity"
+                  },
+                  "max_lanes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 6,
+                    "default": 3
+                  },
+                  "oversample": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 5,
+                    "default": 1.5,
+                    "description": "pull: raw records planned per wanted record, to cover duplicates across lanes"
+                  },
+                  "wait_seconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 60,
+                    "default": 60,
+                    "description": "How long to wait for the result (seconds). If it is not done by then you get a job_id to poll with `job`."
+                  },
+                  "request_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "Idempotency key: retrying with the same request_id returns the first call's job instead of running (and paying) again."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/execute": {
+      "post": {
+        "operationId": "execute",
+        "summary": "Step 4: run a plan the user approved, within its budget, resumably",
+        "description": "Runs a plan from `plan`, only after the user has approved it: pass its plan_id and approve=true. It spends at most the approved amount (the plan's budget, or a lower max_cost_usd), preflight included.\nA pull runs its lanes in order (base layer first, then top-ups), stops a cell at its first short page or once its pages mostly repeat, stops calling once the deduped list reaches the requested count, never lets the Firecrawl balance go below zero, and dedupes across lanes on name+phone and name+address. Calling execute again on the same plan resumes it without paying for finished pages twice.\nReturns counts, what each lane did, and a sample; the rows are read with job action=results or action=export (csv/json/jsonl). Records are deleted after the retention period (30 days).\ndrop_lanes leaves out lanes the user struck from the plan.",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the provider it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its provider is not configured)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "plan_id": {
+                    "type": "string"
+                  },
+                  "approve": {
+                    "type": "boolean",
+                    "description": "Must be true: the user said yes to this plan"
+                  },
+                  "max_cost_usd": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 500,
+                    "description": "Approve less than the plan's budget (never more)"
+                  },
+                  "drop_lanes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Lanes (provider/capability) to leave out"
+                  },
+                  "wait_seconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 60,
+                    "default": 30,
+                    "description": "How long to wait for the result (seconds). If it is not done by then you get a job_id to poll with `job`."
+                  },
+                  "request_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "Idempotency key: retrying with the same request_id returns the first call's job instead of running (and paying) again."
+                  }
+                },
+                "required": [
+                  "plan_id",
+                  "approve"
                 ],
                 "additionalProperties": false
               }

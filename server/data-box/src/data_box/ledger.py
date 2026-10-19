@@ -64,6 +64,12 @@ class Ledger:
               detail TEXT NOT NULL DEFAULT '', seconds REAL NOT NULL, cost INTEGER NOT NULL DEFAULT 0, at REAL NOT NULL);
             CREATE INDEX IF NOT EXISTS calls_at ON calls(at);
             CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS plans(
+              id TEXT PRIMARY KEY, kind TEXT NOT NULL, request TEXT NOT NULL, body TEXT NOT NULL,
+              status TEXT NOT NULL, budget INTEGER NOT NULL, approved INTEGER, jobs TEXT NOT NULL DEFAULT '[]',
+              preflight_spent INTEGER NOT NULL DEFAULT 0,
+              created REAL NOT NULL, updated REAL NOT NULL, expires REAL NOT NULL);
+            CREATE INDEX IF NOT EXISTS plans_recent ON plans(created);
             """)
         os.chmod(self.path, 0o600)
 
@@ -107,6 +113,13 @@ class Ledger:
                 "INSERT INTO jobs(id,tool,request_id,args,args_hash,status,budget,created,updated) VALUES(?,?,?,?,?,?,?,?,?)",
                 (job_id, tool, request_id, json.dumps(args, default=str), digest, "queued", budget, now, now))
         return self.job(job_id), True
+
+    def job_by_request(self, request_id: str | None) -> dict | None:
+        if not request_id:
+            return None
+        with self.db() as db:
+            row = db.execute("SELECT * FROM jobs WHERE request_id=?", (request_id,)).fetchone()
+        return self._row(row) if row else None
 
     def job(self, job_id: str) -> dict:
         with self.db() as db:
@@ -161,6 +174,10 @@ class Ledger:
                            ("data-box restarted while this job ran; paid steps already taken are charged in full "
                             "and were not replayed", now, now, row["id"]))
                 self._close_reservations(db, row["id"])
+            # A plan whose job died is resumable: back to approved, so `execute` picks it up again.
+            db.execute("UPDATE plans SET status='approved', updated=? WHERE status='executing'", (now,))
+            # A plan still being prepared never reached the user; it cannot be approved.
+            db.execute("UPDATE plans SET status='cancelled', updated=? WHERE status='preparing'", (now,))
         return len(rows)
 
     # --- money ------------------------------------------------------------------------------
@@ -211,6 +228,149 @@ class Ledger:
         with self.db() as db:
             total = db.execute("SELECT COALESCE(SUM(spent),0) FROM jobs WHERE created>=?", (since,)).fetchone()[0]
         return usd(total)
+
+    # --- plans ------------------------------------------------------------------------------
+    # A plan is steps 1-3 written down: what was asked, every source surveyed, the chosen lanes and
+    # the budget. Nothing paid runs until a caller approves it with `execute`; the approved amount
+    # binds every job that executes it, across resumes.
+
+    def create_plan(self, kind: str, request: str, body: dict, budget_usd: float, ttl_seconds: float,
+                    preflight_spent_usd: float = 0, status: str = "awaiting_approval") -> dict:
+        plan_id = "plan_" + secrets.token_hex(8)
+        now = time.time()
+        with self.db() as db:
+            db.execute(
+                "INSERT INTO plans(id,kind,request,body,status,budget,preflight_spent,created,updated,expires) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (plan_id, kind, request[:2000], json.dumps(body, default=str, ensure_ascii=False), status,
+                 money(budget_usd), money(preflight_spent_usd), now, now, now + ttl_seconds))
+        return self.plan(plan_id)
+
+    def plan(self, plan_id: str) -> dict:
+        with self.db() as db:
+            row = db.execute("SELECT * FROM plans WHERE id=?", (plan_id,)).fetchone()
+            if not row:
+                raise KeyError(f"no plan {plan_id!r}")
+            if row["status"] == "awaiting_approval" and time.time() > row["expires"]:
+                db.execute("UPDATE plans SET status='expired', updated=? WHERE id=?", (time.time(), plan_id))
+                row = db.execute("SELECT * FROM plans WHERE id=?", (plan_id,)).fetchone()
+            return self._plan_row(db, row)
+
+    def plans(self, limit: int = 20, status: str | None = None) -> list[dict]:
+        query, params = "SELECT * FROM plans", []
+        if status:
+            query += " WHERE status=?"
+            params.append(status)
+        query += " ORDER BY created DESC LIMIT ?"
+        params.append(max(1, min(int(limit), 200)))
+        with self.db() as db:
+            return [self._plan_row(db, r, with_body=False) for r in db.execute(query, params)]
+
+    def approve_plan(self, plan_id: str, budget_usd: float) -> dict:
+        """Approve (or re-approve to resume) a plan for at most its own budget."""
+        amount = money(budget_usd)
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT * FROM plans WHERE id=?", (plan_id,)).fetchone()
+            if not row:
+                raise KeyError(f"no plan {plan_id!r}")
+            if row["status"] == "awaiting_approval" and time.time() > row["expires"]:
+                db.execute("UPDATE plans SET status='expired', updated=? WHERE id=?", (time.time(), plan_id))
+                raise Conflict(f"plan {plan_id} expired; make a new plan (prices and balances are re-checked)")
+            if row["status"] in ("expired", "cancelled", "done"):
+                raise Conflict(f"plan {plan_id} is {row['status']}; make a new plan")
+            if row["status"] == "preparing":
+                raise Conflict(f"plan {plan_id} is still being prepared; wait for it with plan action=get")
+            if row["status"] == "executing":
+                raise Conflict(f"plan {plan_id} is already executing; follow its job, or cancel it first")
+            if amount > row["budget"]:
+                raise Conflict(f"max_cost_usd ${usd(amount):.4f} is more than plan {plan_id}'s budget "
+                               f"${usd(row['budget']):.4f}; make a new plan with a bigger budget")
+            db.execute("UPDATE plans SET status='approved', approved=?, updated=? WHERE id=?",
+                       (amount, time.time(), plan_id))
+        return self.plan(plan_id)
+
+    def begin_execution(self, plan_id: str, budget_usd: float) -> dict:
+        """Approve a plan and mark it executing in one step, so two execute calls racing on the same
+        plan can never both start a job (and together spend twice what was approved)."""
+        amount = money(budget_usd)
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT * FROM plans WHERE id=?", (plan_id,)).fetchone()
+            if not row:
+                raise KeyError(f"no plan {plan_id!r}")
+            if row["status"] == "awaiting_approval" and time.time() > row["expires"]:
+                db.execute("UPDATE plans SET status='expired', updated=? WHERE id=?", (time.time(), plan_id))
+                db.commit()
+                raise Conflict(f"plan {plan_id} expired; make a new plan (prices and balances are re-checked)")
+            if row["status"] in ("expired", "cancelled", "done"):
+                raise Conflict(f"plan {plan_id} is {row['status']}; make a new plan")
+            if row["status"] == "preparing":
+                raise Conflict(f"plan {plan_id} is still being prepared; wait for it with plan action=get")
+            if row["status"] == "executing":
+                raise Conflict(f"plan {plan_id} is already executing; follow its job, or cancel it first")
+            if amount > row["budget"]:
+                raise Conflict(f"max_cost_usd ${usd(amount):.4f} is more than plan {plan_id}'s budget "
+                               f"${usd(row['budget']):.4f}; make a new plan with a bigger budget")
+            db.execute("UPDATE plans SET status='executing', approved=?, updated=? WHERE id=?",
+                       (amount, time.time(), plan_id))
+        return self.plan(plan_id)
+
+    def attach_job(self, plan_id: str, job_id: str) -> None:
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT jobs FROM plans WHERE id=?", (plan_id,)).fetchone()
+            jobs = json.loads(row["jobs"]) if row else []
+            if job_id not in jobs:
+                jobs.append(job_id)
+            db.execute("UPDATE plans SET jobs=?, status='executing', updated=? WHERE id=?",
+                       (json.dumps(jobs), time.time(), plan_id))
+
+    def set_plan_status(self, plan_id: str, status: str) -> None:
+        with self.db() as db:
+            db.execute("UPDATE plans SET status=?, updated=? WHERE id=?", (status, time.time(), plan_id))
+
+    def write_plan(self, plan_id: str, body: dict, *, preflight_spent_usd: float | None = None,
+                   budget_usd: float | None = None, status: str | None = None) -> dict:
+        """Fill in a plan once steps 2-3 are done (or record why they were not)."""
+        sets, params = ["body=?", "updated=?"], [json.dumps(body, default=str, ensure_ascii=False), time.time()]
+        if preflight_spent_usd is not None:
+            sets.append("preflight_spent=?")
+            params.append(money(preflight_spent_usd))
+        if budget_usd is not None:
+            sets.append("budget=?")
+            params.append(money(budget_usd))
+        if status is not None:
+            sets.append("status=?")
+            params.append(status)
+        with self.db() as db:
+            db.execute(f"UPDATE plans SET {', '.join(sets)} WHERE id=?", (*params, plan_id))
+        return self.plan(plan_id)
+
+    def plan_spent(self, plan_id: str) -> float:
+        """Everything a plan has cost: its preflight plus every job that executed it."""
+        with self.db() as db:
+            row = db.execute("SELECT jobs, preflight_spent FROM plans WHERE id=?", (plan_id,)).fetchone()
+            if not row:
+                raise KeyError(f"no plan {plan_id!r}")
+            jobs = json.loads(row["jobs"])
+            spent = row["preflight_spent"]
+            for job_id in jobs:
+                job = db.execute("SELECT spent, reserved FROM jobs WHERE id=?", (job_id,)).fetchone()
+                if job:
+                    spent += job["spent"] + job["reserved"]
+        return usd(spent)
+
+    def _plan_row(self, db: sqlite3.Connection, row: sqlite3.Row, with_body: bool = True) -> dict:
+        plan = {
+            "plan_id": row["id"], "kind": row["kind"], "request": row["request"], "status": row["status"],
+            "budget_usd": usd(row["budget"]), "approved_usd": None if row["approved"] is None else usd(row["approved"]),
+            "preflight_spent_usd": usd(row["preflight_spent"]), "jobs": json.loads(row["jobs"]),
+            "created": row["created"], "expires": row["expires"],
+        }
+        if with_body:
+            plan["body"] = json.loads(row["body"])
+        return plan
 
     # --- calls ------------------------------------------------------------------------------
 

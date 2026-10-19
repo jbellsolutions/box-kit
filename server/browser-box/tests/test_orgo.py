@@ -10,6 +10,7 @@ from unittest import mock
 
 import httpx
 
+from gateway.lock import LaneBusy
 from gateway import orgo, server, tools
 from gateway.orgo import OrgoUnavailable
 
@@ -247,38 +248,28 @@ class ComputerTool(Setup):
         self.assertEqual(blocks[1].data, "QUJD")
         self.assertNotIn("QUJD", blocks[0].text, "base64 must not also ride along as text")
 
-    async def test_computer_lane_does_not_block_the_browser(self):
-        """Separate resources, separate lanes: a busy desktop must not stall a page read."""
-        async with tools.lane(name="computer-vm1", label="a long desktop job"):
-            async with tools.lane(wait_seconds=0, label="a page read"):
-                pass
-
     async def test_two_jobs_on_one_computer_are_serialised(self):
         async with tools.lane(name="computer-vm1", label="first"):
-            with self.assertRaises(tools.LaneBusy):
+            with self.assertRaises(LaneBusy):
                 async with tools.lane(wait_seconds=0, name="computer-vm1", label="second"):
                     pass
 
 
 class StatusWithOrgo(Setup):
     async def test_a_broken_orgo_key_takes_its_tools_offline_with_the_reason(self):
-        async def steel_ok():
-            return {"status": "ok"}
-
         rec, patched = orgo_serving(lambda r: httpx.Response(401, json={"error": "Invalid API key"}))
-        with configured(), patched, mock.patch.object(tools.steel, "health", steel_ok):
+        with configured(), patched, mock.patch.object(tools, "cloud_client", lambda: None), \
+                mock.patch.object(tools, "browserbase_client", lambda: None):
             out = await tools.status({})
         orgo_row = next(c for c in out["components"] if c["name"].startswith("orgo"))
         self.assertFalse(orgo_row["up"])
         self.assertEqual({u["tool"] for u in out["tools_unavailable"]}, {"computer", "task"})
         self.assertIn("Invalid API key", out["tools_unavailable"][0]["reason"])
-        self.assertIn("read", out["tools_working_now"])
+        self.assertIn("fetch", out["tools_working_now"])
 
     async def test_unconfigured_orgo_is_reported_but_nothing_is_advertised(self):
-        async def steel_ok():
-            return {"status": "ok"}
-
-        with mock.patch.dict("os.environ", {"ORGO_API_KEY": ""}), mock.patch.object(tools.steel, "health", steel_ok):
+        with mock.patch.dict("os.environ", {"ORGO_API_KEY": ""}), mock.patch.object(tools, "cloud_client", lambda: None), \
+                mock.patch.object(tools, "browserbase_client", lambda: None):
             out = await tools.status({})
         orgo_row = next(c for c in out["components"] if c["name"].startswith("orgo"))
         self.assertIs(orgo_row["configured"], False)

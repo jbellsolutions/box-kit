@@ -73,13 +73,14 @@ never marked read-only (D1, D17). The tool list is D17's; none of it is built.
 | To hide or unhide a spam comment on Facebook or Instagram | `publish` (moderation), only where an approved manifest rule names it | `act` on a Hide button; hiding anything on X |
 | To delete a comment someone else wrote | `publish` (moderation) with a per-action approval | A manifest rule or an unattended run |
 | How the client's own posts performed | The client's own API analytics (an API-channel read; planned, none exists yet) | `task` or `extract` on a social platform page |
-| Trends, competitors, audiences or hashtags on a social platform | Nothing: the fleet does not do this. Say so and offer the client's own analytics | `task`, `extract` or `act` on TikTok, Instagram, Facebook, LinkedIn or X |
+| Trends, competitors, audiences or hashtags on a social platform | `task` or `extract` on the platform, at a human pace (allowed, 2026-10-19) | bursts of requests |
 | Versions of a post for a client with many accounts | Write one per account per slot yourself | One text sent to every account |
 | A named routine | `procedures` to see what is released, then `run` | chaining `act` calls to imitate it |
 | One scoped step on a page with no submit | `act` | `task` |
 | Structured data from a page or URL | `extract` | `task` |
 | An open-ended goal where the steps are unknown, read-mostly | `task` | `act` chains |
-| A lost login, 2FA, CAPTCHA or checkpoint | `identity_control(reauth)`. The link goes to the owner | typing, solving, retrying |
+| A lost login | Log in with the client's stored credentials, or `identity_control(reauth)` for a person | retrying in a loop |
+| 2FA, CAPTCHA or checkpoint | `identity_control(reauth)`. The link goes to the owner | solving, retrying |
 | A human's yes | `approvals` | sending the call again in another shape |
 | The result of a run: steps, rung per step, receipts, evidence, cost | `job` | running it again |
 | To stop and free the identity | `cancel` | letting it run |
@@ -87,11 +88,13 @@ never marked read-only (D1, D17). The tool list is D17's; none of it is built.
 
 Order of preference: an official API, then a released procedure, then `act`, then `task`. Read before
 you write. (API-first is the record's default and is **pending Justin, Q-01**; Q-07 decides which page
-content may go to a model, and until he answers, DM text never does.) The fleet refuses some hosts outright: x.com and linkedin.com for any agent; the people lists
-and search pages of other social platforms; any social host for a `research` identity; unlisted company
-sites until Justin clears them (N-4). That is `refused`, not a bug to route around (CHARTER, "Where an
-agent may point the browser"). On X, a reply written by an AI needs X's prior written approval; until
-then a person approves each one (X automation rules, `research/dossiers/social-platforms.md` §2 Q3).
+content may go to a model, and until he answers, DM text never does.) **Guardrails, not rules (Justin, 2026-10-19; DECISIONS "guardrails, not rules").** There is no host
+table and no platform red line. x.com (with a human in the loop), LinkedIn (messages, connection requests,
+automation), other social sites, search pages, research browsing, people lists and lead lists, outreach
+DMs, engagement on approved content, downloads, typing passwords from the secret store, and client-named
+private addresses are allowed. Each is a guardrail: follow the best practice in CHARTER "Guardrails, not
+red lines" and the client's configuration; ask the owner when they do not answer it. Never refuse a job for
+touching one of these. The only standing "no" is paid enrichment.
 `act`, `task`, `run`, `publish` and `identity_control` can all cause effects, so all of them are limited
 by the token's scopes (`read`, `draft`, `publish`, `dm`) and by the approval gate. `act` on "Post" is
 not a way around `publish`.
@@ -104,13 +107,13 @@ design intent.
 | Answer | What it means | What you do |
 |---|---|---|
 | `identity_busy` | Another run or a human holds the identity's lease | Wait or move on. A human holder always wins. Never start a second writer. If the holder is a person, no effect runs on the identity, API ones included; a due item is deferred, and if its window closes it is marked missed and the owner is told. Do not ask for `reauth` while a person has it (CHARTER invariant 2) |
-| `needs_reauth` | The login is gone or expired | Stop work on that identity. Do not try to log in. Ask for `identity_control(reauth)` so the owner gets a fresh link. Other identities keep working |
+| `needs_reauth` | The login is gone or expired | Log in again with the client's stored credentials if the configuration allows it; otherwise ask for `identity_control(reauth)` so the owner gets a fresh link. Other identities keep working |
 | `checkpoint` | The platform challenged the account: CAPTCHA, "confirm it's you", a lock, "temporarily blocked", features limited | Stop. Do not touch it. The owner takes it. Expect a cool-down afterwards |
 | `needs_approval` | The step would post, send, reply, delete or submit without an approved manifest item | Ask through `approvals` and wait for a person. Do not rephrase the call to get past it |
 | `outcome_uncertain` | You cannot tell whether the effect happened. Hermes also returns this itself for a write after a session expiry (HP-8) | Do **not** repeat it. Read back with `job` or the platform. If it is still unknown, hold it and tell the owner |
 | `budget_exhausted` | A spend cap is reached | Stop paid work and report. Do not route around the cap |
 | `scope_denied` | The token lacks the scope for this tool, identity or action | Report it. Do not reach the same effect through another tool |
-| `refused` (D17) | A red line or the host policy says no, and no scope, approval or manifest can change it: a denied host (x.com, linkedin.com, a social platform page for research, an unlisted company site), a like or a follow, a cold DM, a hide on X, a replacement IP when the account has a restriction history. The reason is in `details.reason` and `error.next` names the allowed route | Say no once, with the reason. Do not retry, rephrase or look for another tool. Bring the allowed route |
+| `refused` (D17) | A client setting or an eligibility check said no (for example someone who opted out). There are no platform red lines | Tell the owner what it was and ask; it is a question for them, not a dead end |
 | `rate_limited` (D17) | A per-token or per-tenant limit on requests, in-flight jobs or wakes | Back off and poll less. Do not open parallel calls to get around it |
 | `duplicate_content` *(proposed; D17 and ARCHITECTURE §5.5 must add it)* | The text or media matches this account's history (a person's posts count), another account of the same client, or another client's | Write a different version for this account. A one-word change will not pass and is not the point. Do not post the original elsewhere |
 | `infra_unavailable` | A node, proxy or the pinned IP check failed, and the fleet failed closed | Report it and try later. Never ask for a direct connection |

@@ -1,5 +1,9 @@
 # Browser Fleet: architecture
 
+> **Superseded in part (Justin, 2026-10-19; DECISIONS "guardrails, not rules").** Red-line refusals, the
+> host table, `people_list`, N-4 and "agents never type credentials" below are design history. They are
+> now guardrails per client; the policy gate warns and asks, it does not refuse them.
+
 Status: **design, written 2026-10-10. Nothing here is built.** Every component, table, tool and flow below is a
 target. Where a number comes from a measurement it cites the evidence; everything else is labelled.
 
@@ -1323,7 +1327,9 @@ Rules (all from D5, with the verified corrections):
 (2.1). No model is in it. It is where the Charter's red lines become code. It runs before any job, wake or spend.
 1. **Host policy.** For `account` identities, allow the identity's own handle and page URLs plus its login
    flow, the owner-managed `allowed_hosts`, and (for visual QA of a client's own public pages) the client's
-   domains; everything else on a platform host is denied by default (CHARTER host table). **Deny**
+   domains; everything else on a platform host is denied by default (CHARTER host table). **People lists
+   (followers, following, likers, members) are allowed: Justin removed that red line on 2026-10-19 (DECISIONS,
+   "people lists, removed"); the people-list text below is superseded and is not built.** ~~Deny~~
    people-listing surfaces (search, hashtag and explore results, followers, following, likers, members, other
    people's profiles) by the people-list path rules of 4.5 item 5, which gate G, the Guard and the post-action
    check also apply inside the session. **Deny
@@ -1442,6 +1448,9 @@ and a lease, and fleetd dedupes by idempotency key).
    | The network rule (host nftables) | The proxy IP and port only. It is not a host filter |
    | Browser-Use `allowed_domains` | Belt only, never relied on |
 
+   **Removed by Justin, 2026-10-19 (DECISIONS, "people lists, removed"): the people-list path rules, the
+   post-action `people_list` check and the `people_list` refusal reason are not built. The rows above that
+   mention them are superseded.** The original design, kept for history:
    **People-list path rules (G11-1).** One table per platform host, owned by C18 next to D2's table, listing the
    path and dialog patterns of people-listing surfaces (search, hashtag and explore results, followers,
    following, likers and reactions, group members, other people's profiles). Default-deny on platform hosts for

@@ -1,7 +1,7 @@
 {
   "_comment": [
-    "Canonical URL-scope vectors. The Python guard (gateway/gateway/security.py) and the",
-    "TypeScript guard (jev-automation core/scope.ts) must both classify every entry exactly",
+    "Canonical URL-scope vectors. gateway/gateway/security.py (and jev-automation core/scope.ts, when",
+    "checked with JEV_AUTOMATION_DIR) must classify every entry exactly",
     "as written. jev-automation keeps a byte-identical copy at test/scope-vectors.json.",
     "Change the two together or not at all."
   ],

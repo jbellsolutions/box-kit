@@ -1,0 +1,55 @@
+version: 2
+project_name: browser-box-pp-cli
+changelog:
+  disable: true
+builds:
+  - id: browser-box-pp-cli
+    main: ./cmd/browser-box-pp-cli
+    binary: browser-box-pp-cli
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X browser-box-pp-cli/internal/cli.version={{ .Version }}
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+  - id: browser-box-pp-mcp
+    main: ./cmd/browser-box-pp-mcp
+    binary: browser-box-pp-mcp
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+checksum:
+  name_template: checksums.txt
+brews:
+  - name: browser-box-pp-cli
+    repository:
+      owner: jbellsolutions
+      name: homebrew-tap
+    homepage: "https://github.com/jbellsolutions/browser-box-pp-cli"
+    description: "Your own browser box from the command line, plus the memory the box does not keep: call history, a page cache, full-text search and batched reads that retry busy refusals."
+    install: |
+      bin.install "browser-box-pp-cli"
+      bin.install "browser-box-pp-mcp"

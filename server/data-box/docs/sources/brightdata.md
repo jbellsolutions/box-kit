@@ -2,7 +2,7 @@
 
 **Status (2026-09-23).**
 - **API key:** verified with the account's zones and the dataset list, and set on the droplet.
-- **Wiring:** nothing calls Bright Data yet. The Unlocker and SERP arrive in M3; datasets and scrapers arrive in M4.
+- **Wiring:** tier 2. Nothing calls Bright Data yet. The Web Unlocker becomes scrape rung 3 in D3; SERP, datasets and scrapers join the survey as tier 2 data lanes in D4, used when tier 1 cannot serve.
 - **Proxy:** `BRIGHTDATA_PROXY_USER` / `BRIGHTDATA_PROXY_PASSWORD` have not been supplied.
 
 ## What it gives data-box
@@ -16,13 +16,13 @@
 
 The account also has a `mcp_browser` (Browser API) zone. data-box doesn't use it; browser-box is the browser.
 
-**Datasets:** 1,762, measured through `GET /datasets/list` on 2026-09-23. That is well above Bright Data's "700+" marketing figure. Each dataset becomes a catalog row in M4, replacing the nine dataset IDs Super Browser hard-coded.
+**Datasets:** 1,762, measured through `GET /datasets/list` on 2026-09-23. That is well above Bright Data's "700+" marketing figure. In D4 the survey lists the datasets that fit a request, replacing the nine dataset IDs Super Browser hard-coded.
 
 ## How data-box calls it
 
 - **Base URL:** `https://api.brightdata.com`
 - **Auth:** `Authorization: Bearer $BRIGHTDATA_API_KEY`
-- **Web Unlocker and SERP:** `POST /request` with `{zone, url, format}`. The exact body is confirmed against Bright Data's docs at the start of M3.
+- **Web Unlocker and SERP:** `POST /request` with `{zone, url, format}`. The exact body is confirmed against Bright Data's docs at the start of D3.
 - **Datasets:**
   - `GET /datasets/list` lists them.
   - `POST /datasets/v3/trigger` starts a collection, and `GET /datasets/v3/snapshot/{id}` reads it.

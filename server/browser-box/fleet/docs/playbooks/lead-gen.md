@@ -1,5 +1,8 @@
 # Playbook: lead generation (consent channels first, then the open-web cascade)
 
+> **Superseded in part (Justin, 2026-10-19; DECISIONS "guardrails, not rules").** Social platforms, people
+> lists, named contacts, search pages and live runs on company sites are allowed. Only paid enrichment stays out.
+
 Status: **design, written 2026-10-10 and revised the same day after the scenario stress tests (gap ledger in
 section 12). Nothing here is built.** No lead procedure, source registry, consent
 ledger, connector or `research` identity exists. What exists is one stdlib spike (tier 0, five public test pages
@@ -121,8 +124,6 @@ Source aliases (paths relative to this file):
   or opt-in" is a closed list, and a lead the fleet found is not on it ([social-channels.md](../channels/social-channels.md) §7.1).
 - Create an account, solve a CAPTCHA, pay a solver, or use any stealth or proxy-rotation feature to get past a
   block.
-- Visit a platform profile page to read lead data. A `sameAs` or footer link to a company's LinkedIn or X page
-  is **recorded as a URL and never fetched.**
 - Pass extracted text to anything that acts. Extracted strings are untrusted page text; they are never used as
   publishable content or as instructions (ARCH §4.4; CH invariant 7).
 

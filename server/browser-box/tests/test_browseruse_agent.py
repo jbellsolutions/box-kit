@@ -44,7 +44,7 @@ class Tabs(unittest.IsolatedAsyncioTestCase):
                "TASKPOPUP": {"opener": "TASK"}, "JEVPOPUP": {"opener": "JEV"}}
         sent = []
 
-        async def cdp(*calls):
+        async def cdp(*calls, url=None):
             sent.extend(calls)
             return [{} for _ in calls]
 
@@ -56,7 +56,7 @@ class Tabs(unittest.IsolatedAsyncioTestCase):
     async def test_never_closes_the_last_tab(self):
         sent = []
 
-        async def cdp(*calls):
+        async def cdp(*calls, url=None):
             sent.extend(calls)
             return [{} for _ in calls]
 
@@ -84,7 +84,7 @@ class Runs(unittest.IsolatedAsyncioTestCase):
         out = await bu.run_task(bu.Run(), "finish", 5, 30)
         self.assertEqual((out["status"], out["answer"], out["final_url"]), ("done", "42", "https://example.com/"))
         self.assertEqual(out["estimated_cost_usd"], round(2000 * 1e-7 + 100 * 4e-7, 6))
-        self.cleaned.assert_awaited_once_with({"JEV": {"opener": None}})
+        self.cleaned.assert_awaited_once_with({"JEV": {"opener": None}}, bu.CDP_URL)
 
     async def test_an_overrun_is_killed_and_still_reports_what_it_did(self):
         run = bu.Run()
@@ -138,3 +138,62 @@ class Runs(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+runner_spec = importlib.util.spec_from_file_location("bu_runner", ROOT / "agents" / "browseruse" / "runner.py")
+runner = importlib.util.module_from_spec(runner_spec)
+runner_spec.loader.exec_module(runner)
+
+
+class OwnBrowser(Runs):
+    """A task with a cdp_url runs in that browser; several such tasks run side by side, the shared one alone."""
+
+    async def test_the_task_runs_in_the_browser_it_was_given(self):
+        await bu.run_task(bu.Run(shared=False), "finish", 5, 30, "wss://br-1.cdp.example/devtools/browser/x")
+        bu.pages.assert_awaited_with("wss://br-1.cdp.example/devtools/browser/x")
+        self.cleaned.assert_awaited_once_with({"JEV": {"opener": None}}, "wss://br-1.cdp.example/devtools/browser/x")
+
+    async def test_wss_is_dialled_by_name_for_tls(self):
+        mock.patch.stopall()
+        self.assertEqual(await bu.dialable("wss://br-1.cdp.example/x"), "wss://br-1.cdp.example/x")
+
+    def request(self, body):
+        req = mock.Mock()
+        req.headers = {"authorization": f"Bearer {bu.TOKEN}"}
+        req.json = mock.AsyncMock(return_value=body)
+        return req
+
+    async def test_limits_parallel_tasks_and_keeps_the_shared_browser_to_one(self):
+        with mock.patch.object(bu, "TOKEN", "t"), mock.patch.object(bu, "SELF_CHECK", "ok"), \
+                mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "k"}), mock.patch.object(bu, "PARALLEL", 2), \
+                mock.patch.object(bu, "CDP_URL", "ws://shared-browser:3000/"), \
+                mock.patch.dict(bu.RUNS, {"a": bu.Run(shared=True)}, clear=True):
+            shared = await bu.task(self.request({"goal": "finish"}))
+            self.assertEqual(shared.status_code, 409)
+            bu.RUNS["b"] = bu.Run(shared=False)
+            full = await bu.task(self.request({"goal": "finish", "cdp_url": "wss://x/y"}))
+            self.assertEqual(full.status_code, 409)
+            self.assertIn("BU_PARALLEL", json.loads(full.body)["error"])
+
+    async def test_a_cdp_url_must_be_a_devtools_socket(self):
+        with mock.patch.object(bu, "TOKEN", "t"), mock.patch.object(bu, "SELF_CHECK", "ok"), \
+                mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "k"}), mock.patch.dict(bu.RUNS, {}, clear=True):
+            out = await bu.task(self.request({"goal": "finish", "cdp_url": "file:///etc/passwd"}))
+        self.assertEqual(out.status_code, 400)
+
+
+class ReasoningEffort(unittest.TestCase):
+    """GLM 5.3 Flash cannot switch reasoning off, and browser_use only sends reasoning_effort for
+    models on its own list. Unnamed, every step reasoned at full effort and the task timed out."""
+
+    def test_the_model_is_named_as_a_reasoning_model_so_its_effort_is_sent(self):
+        options = runner.llm_options({"model": "z-ai/glm-5.3-flash", "reasoning_effort": "low"})
+        self.assertEqual(options, {"model": "z-ai/glm-5.3-flash", "reasoning_models": ["z-ai/glm-5.3-flash"],
+                                   "reasoning_effort": "low"})
+
+    def test_a_spec_without_an_effort_still_asks_for_low(self):
+        self.assertEqual(runner.llm_options({"model": "m"})["reasoning_effort"], "low")
+
+    def test_the_server_passes_its_effort_to_the_runner(self):
+        self.assertEqual(bu.REASONING_EFFORT, os.getenv("BU_REASONING_EFFORT", "low"))
+        self.assertIn('"reasoning_effort": REASONING_EFFORT', (ROOT / "agents" / "browseruse" / "server.py").read_text())

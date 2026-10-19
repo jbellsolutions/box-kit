@@ -1,0 +1,340 @@
+{
+  "api_name": "browser-box",
+  "base_url": "https://your-box.example.com",
+  "description": "Your own browser box from the command line, plus the memory the box does not keep: call history, a page cache, full-text search and batched reads that retry busy refusals.",
+  "mcp_ready": "full",
+  "http_transport": "standard",
+  "auth": {
+    "type": "bearer_token",
+    "header": "Authorization",
+    "env_vars": [
+      "BROWSER_BOX_TOKEN"
+    ],
+    "env_var_specs": [
+      {
+        "name": "BROWSER_BOX_TOKEN",
+        "kind": "per_call",
+        "required": true,
+        "sensitive": true,
+        "inferred": true
+      }
+    ]
+  },
+  "required_headers": [],
+  "tools": [
+    {
+      "name": "act_act",
+      "description": "Drive the browser step by step in plain words: 'open https://…', 'click the Pricing link', 'type 'running shoes' into the search box and press enter', 'scroll down', 'go back'. You plan the steps; Jev, a decision model that never writes text, picks which element on the page each step means (typically ~0.3 s; page loads take longer). Up to 4 steps joined by 'then' or 'and' run in order. When Jev is unsure it asks instead of guessing: status needs_clarification with options — answer with act(pick=\u003coption pick\u003e). Anything that looks hard to undo (buy, delete, send, post) comes back as needs_confirmation — answer with act(confirm=true) or act(confirm=false). Nothing risky runs unconfirmed. Prefer act over task whenever you can say the steps: measured on search, forms, pagination, state and a JS app, it was 10–60x faster and as or more accurate on all but search (see the README). Read each step's did: a click on a link marked (page does not exist) is a wrong pick, so say which one you meant. Use for clicking, typing, forms and multi-page flows. Do NOT use just to read a public page: fetch or read is cheaper. The tab stays where you left it between calls. Give session_id to work signed in (see session); without it act uses a logged-out scratch browser that closes after a few idle minutes. Private and internal addresses are refused: every URL is checked before it opens, and a step that lands off the public web is undone and reported as refused. Returns: status (done | failed | needs_clarification | needs_confirmation), steps (what ran and how each went), url, title, and the page's text when read_page=true. Optional: command, confirm, pick (plus 2 more). Returns the new ActActResponse.",
+      "method": "POST",
+      "path": "/api/v1/act",
+      "params": [
+        {
+          "name": "command",
+          "type": "string",
+          "location": "body",
+          "description": "One step, or up to 4 joined by then/and"
+        },
+        {
+          "name": "confirm",
+          "type": "bool",
+          "location": "body",
+          "description": "Answer to needs_confirmation"
+        },
+        {
+          "name": "pick",
+          "type": "string",
+          "location": "body",
+          "description": "Answer to needs_clarification: one option's pick"
+        },
+        {
+          "name": "read_page",
+          "type": "bool",
+          "location": "body",
+          "description": "Also return the page's readable text afterwards"
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "location": "body",
+          "description": "Work signed in, in this saved session's browser. Without it, act uses a scratch browser that is logged out and forgotten when it closes"
+        }
+      ]
+    },
+    {
+      "name": "computer_computer",
+      "description": "Drive an Orgo cloud computer: a full Linux desktop with a browser and a shell, running OFF this box. You are the eyes — take a screenshot, decide, act, screenshot again. Coordinates are pixels in the most recent screenshot. Actions: screenshot | click(x, y[, button, double]) | type(text) | key(key, e.g. 'Return', 'ctrl+c') | scroll(x, y[, direction, amount]) | bash(command) | start | stop. Do NOT use for a web page that fetch or read can answer: this is a whole computer, billed per hour. bash is a real shell on that computer, inside your Orgo account. A computer bills until it is stopped. Call action=stop when you are finished. Required: action. Optional: amount (default: 3), button (default: left), command (plus 10 more). Returns the new ComputerComputerResponse.",
+      "method": "POST",
+      "path": "/api/v1/computer",
+      "params": [
+        {
+          "name": "action",
+          "type": "string",
+          "location": "body",
+          "description": "Action",
+          "required": true
+        },
+        {
+          "name": "amount",
+          "type": "int",
+          "location": "body",
+          "description": "Amount"
+        },
+        {
+          "name": "button",
+          "type": "string",
+          "location": "body",
+          "description": "Button"
+        },
+        {
+          "name": "command",
+          "type": "string",
+          "location": "body",
+          "description": "For bash"
+        },
+        {
+          "name": "computer_id",
+          "type": "string",
+          "location": "body",
+          "description": "Omit to use the pinned or running computer"
+        },
+        {
+          "name": "context",
+          "type": "bool",
+          "location": "body",
+          "description": "Include screen and focused Chrome element context"
+        },
+        {
+          "name": "direction",
+          "type": "string",
+          "location": "body",
+          "description": "Direction"
+        },
+        {
+          "name": "double",
+          "type": "bool",
+          "location": "body",
+          "description": "Double"
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "location": "body",
+          "description": "For key: a key or a +-joined combination"
+        },
+        {
+          "name": "screen_id",
+          "type": "string",
+          "location": "body",
+          "description": "Target this exact Orgo screen; unknown ids fail closed"
+        },
+        {
+          "name": "screenshot_after",
+          "type": "bool",
+          "location": "body",
+          "description": "Return a screenshot after the action, saving a round trip"
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "location": "body",
+          "description": "For type"
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "location": "body",
+          "description": "X"
+        },
+        {
+          "name": "y",
+          "type": "int",
+          "location": "body",
+          "description": "Y"
+        }
+      ]
+    },
+    {
+      "name": "fetch_fetch",
+      "description": "Plain HTTP GET, no browser. Fastest and free. Use it FIRST for any page that is server-rendered HTML, JSON or plain text — news sites, docs, APIs, RSS. Do NOT use when: the page needs JavaScript to render, is behind a login, or blocks bots. Returns: text (HTML stripped to readable text), status_code, final_url. Required: url. Returns the new FetchFetchResponse.",
+      "method": "POST",
+      "path": "/api/v1/fetch",
+      "params": [
+        {
+          "name": "url",
+          "type": "string",
+          "location": "body",
+          "description": "Public http(s) URL",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "read_read",
+      "description": "Open a URL in the real browser and return its rendered text, links and optionally a screenshot. Use when fetch returned nothing useful because the page renders with JavaScript. Do NOT use when: fetch already answered (this costs a browser slot), or the task needs clicking and typing rather than reading. Each read gets its own hosted browser (Browser Use Cloud, when status shows it), so reads run side by side up to the plan's limit; there is no queue on this host. If that browser fails or the site blocks it, engine='auto' falls back to Browserbase when configured; the result's engine and fallback_reason say which ran and why. Reads are public and logged out: never for a page that needs a session. The screenshot is of the same page load the text came from. Ask for it when the picture is the evidence. Returns: text, title, links, status_code, and screenshot_base64 (JPEG) when asked for. Required: url. Optional: delay_ms, engine (default: auto), region (plus 2 more). Returns the new ReadReadResponse.",
+      "method": "POST",
+      "path": "/api/v1/read",
+      "params": [
+        {
+          "name": "delay_ms",
+          "type": "int",
+          "location": "body",
+          "description": "Wait this long after load for late content."
+        },
+        {
+          "name": "engine",
+          "type": "string",
+          "location": "body",
+          "description": "auto: Browser Use Cloud, then Browserbase as the fallback when it is configured. browseruse: Browser Use only. browserbase: go straight to Browserbase (paid hours; public, logged-out pages only)."
+        },
+        {
+          "name": "region",
+          "type": "string",
+          "location": "body",
+          "description": "Browserbase only: read the page from this region. Implies engine=browserbase."
+        },
+        {
+          "name": "screenshot",
+          "type": "bool",
+          "location": "body",
+          "description": "Also return a full-page JPEG of the page that was read."
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "location": "body",
+          "description": "Read signed in, in this saved session's browser (a tab of its own; act's tab is left where it was). Hosted engine only"
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "location": "body",
+          "description": "Public http(s) URL",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "session_session",
+      "description": "Saved browser logins. A session is a browser profile: sign in to a site once, by hand, and every later act, read or task call given its session_id starts already signed in. create -\u003e a new session, with its browser open: returns session_id and live_url. Open live_url, sign in to each site the session needs, then call release to save the logins. login -\u003e open an existing session's browser again for more sign-ins (returns live_url). list -\u003e every session, the sites it holds logins for, and whether its browser is open. release -\u003e close the session's browser and KEEP its logins. delete -\u003e forget the session and its logins; that is the only reliable logout. A session runs one browser at a time: calls on the same session_id wait for each other; different sessions run side by side. An idle session's browser closes itself after a few minutes and costs nothing until it is used again. live_url lets whoever holds it drive that browser: share it only with the person signing in. Do NOT create a session for public pages: read and act without session_id use a fresh, logged-out browser. Required: action. Optional: name, session_id.",
+      "method": "POST",
+      "path": "/api/v1/session",
+      "params": [
+        {
+          "name": "action",
+          "type": "string",
+          "location": "body",
+          "description": "Action",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "location": "body",
+          "description": "create only: a label, e.g. the account it holds"
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "location": "body",
+          "description": "Required for login and delete; release without it closes act's scratch browser"
+        }
+      ]
+    },
+    {
+      "name": "status_status",
+      "description": "What is running, what is healthy, and what the last calls cost. Call this when a tool fails, before assuming a capability is missing. It answers honestly: a component that is down is reported as down, with the reason. Returns the StatusStatusResponse.",
+      "method": "GET",
+      "path": "/api/v1/status",
+      "params": []
+    },
+    {
+      "name": "task_task",
+      "description": "Hand a whole goal to an agent and wait for its answer. Use it when you would rather not plan the steps yourself; you lose sight of each step, and every step costs model time. Measured against act: 30–130 s per job, and less reliable. It failed a two-URL cookie job 2 of 3 times and a JS to-do app 3 of 3. Check its answer before trusting it. surface='browser': Browser-Use works the goal in a hosted browser of its own, with a model choosing each step (one model call per step; a few steps take ~10-40 s). Several tasks run side by side. Give session_id to run signed in. Its browser is stopped when it finishes: to look at the last page again, read final_url. Returns status (done | failed | incomplete | timed_out | cancelled | stopped), answer, steps, urls, final_url, tokens and estimated_cost_usd. It runs until it finishes even if you stop waiting: this endpoint cannot hear a client give up. task(cancel=true) stops every running browser task, and each still reports what it did. surface='computer': Orgo's hosted computer-use agent (Claude) works an Orgo desktop until the goal is done. Orgo ignores max_steps and caps its loop at 250 steps; timeout_seconds is the real bound, and hitting it aborts the run. Do NOT use when one fetch or read answers it, or when you can drive the steps yourself with act or computer: that is faster, cheaper and you see every step. Optional: cancel, computer_id, goal (plus 4 more).",
+      "method": "POST",
+      "path": "/api/v1/task",
+      "params": [
+        {
+          "name": "cancel",
+          "type": "bool",
+          "location": "body",
+          "description": "browser only: stop the running task instead of starting one"
+        },
+        {
+          "name": "computer_id",
+          "type": "string",
+          "location": "body",
+          "description": "computer only"
+        },
+        {
+          "name": "goal",
+          "type": "string",
+          "location": "body",
+          "description": "What to achieve and what to report back, in plain words. Required to start a task"
+        },
+        {
+          "name": "max_steps",
+          "type": "int",
+          "location": "body",
+          "description": "browser only: the most model steps it may take"
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "location": "body",
+          "description": "browser only: run signed in, on this saved session's profile. The session's own browser is closed first and the session waits for the task"
+        },
+        {
+          "name": "surface",
+          "type": "string",
+          "location": "body",
+          "description": "Surface"
+        },
+        {
+          "name": "timeout_seconds",
+          "type": "int",
+          "location": "body",
+          "description": "Hitting it stops the run. Default 300 on the browser (at most 900), 600 on a computer"
+        }
+      ]
+    },
+    {
+      "name": "tools_tools",
+      "description": "The tools this box offers right now, with their input schemas. Returns array of ToolsToolsItem.",
+      "method": "GET",
+      "path": "/api/v1/tools",
+      "params": []
+    }
+  ],
+  "novel_features": [
+    {
+      "name": "Durable call ledger",
+      "command": "history",
+      "description": "See every call you made through this CLI, what it cost and why it failed, long after the box forgot it."
+    },
+    {
+      "name": "Page cache re-emit",
+      "command": "cache",
+      "description": "Get a page you already read back instantly, without opening a browser."
+    },
+    {
+      "name": "Cached-page full-text search",
+      "command": "find",
+      "description": "Ask which page you read said something, across everything read so far."
+    },
+    {
+      "name": "Busy-retrying batch queue",
+      "command": "queue read",
+      "description": "Read a list of pages one after another, retrying when the box answers \"busy\"."
+    },
+    {
+      "name": "Session alias",
+      "command": "alias",
+      "description": "Name a logged-in browser session so you can tell later which one it is and release it."
+    },
+    {
+      "name": "Status drift",
+      "command": "drift",
+      "description": "See only what changed on the box since you last looked."
+    }
+  ]
+}

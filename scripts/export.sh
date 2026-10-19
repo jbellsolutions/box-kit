@@ -17,16 +17,33 @@ git -C "$BB" archive "$BB_REF" | tar -x -C "$KIT/server/browser-box" \
 git -C "$DB" archive "$DB_REF" src/data_box tests/databox deploy/data-box docs/how-it-works.md \
   docs/sources docs/openapi.json docs/tools.md | tar -x -C "$KIT/server/data-box"
 rm -f "$KIT/server/data-box/tests/databox/test_drift.py"  # checks the source repo's own doc set
+# These check the plugin folder, which the kit ships from plugins/data-box instead.
+rm -f "$KIT/server/data-box/tests/databox/test_skills.py" "$KIT/server/data-box/tests/databox/test_hermes_install.py"
+
+# data-box's plugin skills, commands and Hermes installer, under the public rule (scripts/export_skills.py).
+python3 "$KIT/scripts/export_skills.py" "$DB" "$DB_REF"
 
 # Kit-owned packaging for data-box (its repo deploys with systemd; the kit runs it in Docker).
 cp -R "$KIT/overlays/data-box/." "$KIT/server/data-box/"
 
 # Owner-specific values -> placeholders.
-find "$KIT/server" -type f \( -name '*.py' -o -name '*.md' -o -name '*.json' -o -name '*.yml' -o -name 'Caddyfile*' -o -name '*.example' \) -print0 |
+find "$KIT/server" -type f \( -name '*.py' -o -name '*.md' -o -name '*.json' -o -name '*.yml' -o -name '*.yaml' -o -name '*.sh' -o -name '*.go' -o -name 'Caddyfile*' -o -name '*.example' \) -print0 |
   xargs -0 sed -i '' -E \
     -e 's/64-225-11-38\.sslip\.io/your-box.example.com/g' \
+    -e 's/161-35-251-195\.sslip\.io/your-box.example.com/g' \
+    -e 's/161\.35\.251\.195/your-box.example.com/g' \
     -e 's/167-71-241-147\.sslip\.io/your-data-box.example.com/g' \
-    -e 's/167\.71\.241\.147\.nip\.io/your-data-box.example.com/g'
+    -e 's/167\.71\.241\.147\.nip\.io/your-data-box.example.com/g' \
+    -e 's/167\.71\.241\.147/your-data-box.example.com/g' \
+    -e 's/64\.225\.11\.38/your-box.example.com/g' \
+    -e 's/ \(id 608577517\)//g' \
+    -e 's#(the )?private repo `jbellsolutions/browser-box-access`#a private repo of your own#g' \
+    -e 's#`jbellsolutions/jev-automation`: Jev#Jev#g' \
+    -e 's#`?jbellsolutions/jev-automation`?#Jev'"'"'s private repository#g' \
+    -e 's/\(e\.g\. DemandGen\)/(for example a lead-gen tool)/g' \
+    -e 's/\(DemandGen\)/(for example a lead-gen tool)/g' \
+    -e 's/a DemandGen profile/another tool'"'"'s profile/g' \
+    -e 's/DemandGen/other tools/g'
 
 echo "$BB_REF" > "$KIT/server/browser-box/.exported-from"
 echo "$DB_REF" > "$KIT/server/data-box/.exported-from"

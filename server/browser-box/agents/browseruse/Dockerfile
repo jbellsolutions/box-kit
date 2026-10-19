@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r "$( [ -f requirements.lock ] && echo requireme
 
 COPY server.py runner.py ./
 
-# No browser here: the agent drives steel's Chromium over CDP. A task runs as a child process
+# No browser here: the agent drives the hosted browser the gateway opened for the task, over CDP. A task runs as a child process
 # that is killed at its timeout; its HOME and TMPDIR are a throwaway directory per task.
 RUN useradd --create-home --shell /usr/sbin/nologin agent && chown -R agent:agent /app
 USER agent

@@ -1,0 +1,27 @@
+{
+ "tool": "moltsets",
+ "home": "https://moltsets.com",
+ "terms_note": null,
+ "sources": [
+  {
+   "url": "https://moltsets.com/llms.txt",
+   "path": "llms.txt",
+   "why": "the product overview for agents"
+  },
+  {
+   "url": "https://developer.moltsets.com/llms.txt",
+   "path": "developer-llms.txt",
+   "why": "the developer docs index"
+  },
+  {
+   "url": "https://developer.moltsets.com/llms-full.txt",
+   "path": "developer-llms-full.txt",
+   "why": "the full API reference"
+  },
+  {
+   "url": "https://moltsets.com/pricing/",
+   "path": "pricing.md",
+   "why": "plans, rates and fair-use windows"
+  }
+ ]
+}

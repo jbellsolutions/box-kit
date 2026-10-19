@@ -49,6 +49,39 @@ Vocabulary used everywhere in `fleet/`:
 
 ---
 
+## Justin's answer, 2026-10-19 (latest): guardrails, not rules
+
+| Topic | His answer | What it means now |
+|---|---|---|
+| Guardrails, not rules | "A rule stops me from doing something. A guardrail is: here are the things we need to address ... If it's a hard rule, it stops progress. If it's a guardrail, it's a question to answer." This repo is a template cloned per client, each with its own use case. | **The fleet has no platform red lines.** CHARTER "Red lines" became "Guardrails, not red lines": each topic has a best practice that a client's configuration can change, and agents ask the owner when the configuration does not answer it. No job is refused for touching one. |
+| Accounts | Accounts can be created for a client, including for "an employee that's coming on in 2 weeks" or "a role they're looking to fill". | The "fake accounts" red line is removed. Best practice: created with the client's permission, purpose recorded. |
+| Ban evasion | Platforms change rules often ("just yesterday Facebook came out with new rules"); a "no ban evasion" rule in our own repo would make adapting look like evasion. | Removed as a rule. Best practice: adapt quickly and honestly to new platform rules; fix the cause of a restriction. Replacing an IP with a restriction history is flagged to the owner, not refused. |
+| DMs and prospecting | "We're definitely going to DM people ... We identify target accounts that are good ... then send them a message on ... a social media account, and then an email. That's prospecting." | The no-cold-DM red line is removed. Best practice: targeted, high-quality outreach with per-client limits. |
+| Engagement | "We definitely want to follow, repost, and engage on content that we approve," including profiles helping grow the main account. | Allowed, with per-client limits and a human pace. |
+| X | "We're doing agent-driven browser on X.com because it'll be a human in the loop." | x.com host denial removed. Best practice: a human in the loop. |
+| LinkedIn | Messages, connection requests and browser automation are allowed; "it's a guardrail, a best practice, not a rule." | LinkedIn red line and host denial removed. Best practice: high-quality messages; a human sends or approved automation is used. |
+| Research browsing | "We definitely want to have agents browsing for research." | Allowed. |
+| TikTok downloads | "We want to be able to download the content." | Allowed. Best practice: check rights before reposting. |
+| Host table | "Remove this whole fleet host table." | Removed. Where a client's agents browse is set in that client's configuration. N-4 (test pages only) is removed. |
+| Passwords | "Typing passwords is okay." | Agents may type credentials from the client's secret store (CHARTER invariant 4 rewritten). Values still never go into prompts, logs, notes or the repo. 2FA, CAPTCHA and checkpoints still go to a person by default. |
+| Private addresses | "Private and internal addresses are okay." | Allowed when a client's (or the box operator's) configuration names them. The checks stay on by default so nothing reaches a private address by accident. |
+| Unchanged | (not raised) | No paid enrichment (Justin's standing rule); no secrets in the repo or logs; the box never touches a Browser Use profile; no reporting unrun checks as passing; approvals before publishing. |
+
+Older documents (ARCHITECTURE, MILESTONES, research, scenarios) still describe red-line refusals, the host
+table and `people_list`. Where they disagree with this entry, this entry wins; they are design history.
+
+## Justin's answer, 2026-10-19 (later): people lists, removed
+
+| Topic | His answer | What it means now |
+|---|---|---|
+| People lists, removed | "This makes no sense. Can you make sure this rule is removed?" then "approved, remove it" (an agent had refused a job with "browser-box rules forbid scraping people lists") | **Scraping people lists and lead data is allowed, for any purpose.** Removed: the CHARTER red line "Scraping platforms for lead data ... building people databases from profiles", the host-table denial of followers, following, likers, members and similar lists, the people-list path rules and post-action check (ARCHITECTURE 4.3 and 4.5 item 5), and the `people_list` refusal reason. This overrides the narrower answer just below. Unchanged until Justin says otherwise: the x.com and linkedin.com host denials, the search/other-accounts'-pages row, the social research-browsing red line, and the no-paid-enrichment rule. |
+
+## Justin's answer, 2026-10-19: people lists for the Rev OS network map
+
+| Topic | His answer | What it means now |
+|---|---|---|
+| People lists | "Yes, you can allow scripting people list." (asked whether the browser may read people lists for the Rev OS network map) | **Allowed for one purpose: mapping a client's own network.** A browser may read the people lists of the client's own accounts and first-degree connections (their LinkedIn connections, Facebook friends, followers and following, group members of groups they belong to) so the network map can build their contact cards. Read only: no messages, posts, likes, follows or connection requests beyond the one the client expects, at human pace under the relcore LinkedIn caps, stopping at any checkpoint or warning. It runs where the client runs their agent (their own computer or their Orgo box) and the data goes only into that client's own database. Every other people-list use stays denied: lead harvesting from strangers' lists, search results, hashtag pages, and building lists of people the client does not know. CHARTER's host table carries the exception. |
+
 ## D1. One shared service, not 1,000 copies
 
 **Decision.** One shared service (`fleetd`) with two doors that run the same handlers: remote MCP

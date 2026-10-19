@@ -2,10 +2,10 @@
 
 **Status (2026-09-23).**
 - **Key:** an API key was supplied, but DiscoLike rejects it. `GET /usage` returns 403 with "API Key is inactive or expired". Reactivate or regenerate it in the DiscoLike dashboard.
-- **Wiring:** nothing calls DiscoLike yet. It arrives in M4, as a `run` source.
+- **Wiring:** tier 1, wired in D2 as a discovery lane inside approved plans ("disco" in a request's `sources` names it). Until D2 every survey lists it with that reason.
 
 DiscoLike is one of two contact-data services approved for data-box as an explicit exception to the "no paid enrichment" rule; MoltSets is the other. Like MoltSets:
-- it runs **only when a caller names it**, with a cap;
+- it is tier 1, but runs **only inside a plan the user approved**, within that plan's budget;
 - it never runs on Jev's automatic path;
 - in lead intent, it runs only after a lead has qualified.
 

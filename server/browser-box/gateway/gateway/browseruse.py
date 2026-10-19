@@ -71,14 +71,18 @@ async def health() -> dict:
     return {"up": not detail.get("problem"), **detail}
 
 
-async def run(goal: str, max_steps: int, timeout_seconds: int) -> dict:
-    return await _call("POST", "/task", {"goal": goal, "max_steps": max_steps, "timeout_seconds": timeout_seconds},
-                       timeout=timeout_seconds + MARGIN)
+async def run(goal: str, max_steps: int, timeout_seconds: int, *, cdp_url: str | None = None,
+              task_id: str | None = None) -> dict:
+    """With cdp_url the task runs in that browser (one of its own); without, in the box's shared one."""
+    body: dict = {"goal": goal, "max_steps": max_steps, "timeout_seconds": timeout_seconds}
+    if cdp_url:
+        body.update(cdp_url=cdp_url, task_id=task_id)
+    return await _call("POST", "/task", body, timeout=timeout_seconds + MARGIN)
 
 
-async def cancel() -> dict | None:
-    """Stop whatever is running there. Returns once the agent is dead and its tabs are closed."""
+async def cancel(task_id: str | None = None) -> dict | None:
+    """Stop that task, or everything running there. Returns once the agent is dead and its tabs are closed."""
     try:
-        return await _call("POST", "/cancel", timeout=30)
+        return await _call("POST", "/cancel", {"task_id": task_id} if task_id else None, timeout=30)
     except BrowserUseUnavailable:
         return None

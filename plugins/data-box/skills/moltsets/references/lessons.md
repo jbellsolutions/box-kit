@@ -1,0 +1,21 @@
+# MoltSets: lessons
+
+- **2026-09 (Hermes lead-agent skill; confirmed in the docs 2026-09-30): a 403 has several causes.**
+  - A missing `User-Agent`, a restricted plan (`plan_restricted`) and an inactive account all come back as 403.
+  - **Rule:**
+    - data-box's client always sends a User-Agent;
+    - D5 reads the nested error code;
+    - an inactive account maps to `AuthRejected`, which stops the run at no charge.
+- **2026-09 (Hermes `moltsets-windowed-people-pull`): one broad query can eat the window.**
+  - "mens health" matched about 7,750 people, more than a whole 7,500-record search window, and starved narrow queries such as "TRT" (4 matches).
+  - **Rule:**
+    - probe every query with `limit: 1`, then pull the smallest totals first;
+    - the D5 meter is the smallest window minus a floor, refreshed from each response's `metadata.fair_use.records_remaining_5h`.
+- **2026-09-30: the local numbers were stale.**
+  - Hermes' playbooks quote the $97 enrichment windows (15,000 / 5 h, 75,000 / week) as search windows, which are 7,500 and 37,500.
+  - Hermes' notes put the $997 plan at 90,000 search records; the docs now say 112,500.
+  - Phone tokens are no longer "included" per plan. They are a separate subscription.
+  - **Rule:** prices and windows come from the dated mirror, and `get_account` is the live authority.
+- **2026-09-30: a helper that pushes data elsewhere.**
+  - The Hermes client starts `lw ingest … --source moltsets` in the background after a CSV search, whenever `~/.local/bin/lw` exists.
+  - **Rule:** data-box never sends records anywhere unasked. Ingest into lead-warehouse is an explicit, optional step after export.

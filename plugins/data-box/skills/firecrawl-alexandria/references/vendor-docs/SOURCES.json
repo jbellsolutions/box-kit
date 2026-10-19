@@ -1,0 +1,59 @@
+{
+ "tool": "firecrawl-alexandria",
+ "home": "https://www.firecrawl.dev",
+ "terms_note": null,
+ "sources": [
+  {
+   "url": "https://docs.firecrawl.dev/features/alexandria.md",
+   "path": "features/alexandria.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/research.md",
+   "path": "features/research.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/developer.md",
+   "path": "features/developer.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/billing.md",
+   "path": "billing.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/rate-limits.md",
+   "path": "rate-limits.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/scrape.md",
+   "path": "api-reference/endpoint/scrape.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/search.md",
+   "path": "api-reference/endpoint/search.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/developer-search.md",
+   "path": "api-reference/endpoint/developer-search.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/research-search-papers.md",
+   "path": "api-reference/endpoint/research-search-papers.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/research-paper.md",
+   "path": "api-reference/endpoint/research-paper.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/research-related-papers.md",
+   "path": "api-reference/endpoint/research-related-papers.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/credit-usage.md",
+   "path": "api-reference/endpoint/credit-usage.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/errors.md",
+   "path": "api-reference/errors.md"
+  }
+ ]
+}

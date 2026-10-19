@@ -24,15 +24,16 @@ from starlette.middleware import Middleware
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
 
-from . import VERSION, config, rest
+from . import VERSION, config, planning, rest
 from .jobs import Runner
 from .ledger import Conflict, Ledger
+from .providers.firecrawl import FirecrawlError
 from .security import UnsafeUrl
 from .tools import HANDLERS, Box, card, offered_tools
 
 # A refusal, or a target that would not answer: things the caller can act on. They come back as
 # {"error": ...} answers without a stack trace in the log.
-EXPECTED = (UnsafeUrl, ValueError, Conflict, ConnectionError, httpx.HTTPError)
+EXPECTED = (UnsafeUrl, ValueError, Conflict, ConnectionError, httpx.HTTPError, FirecrawlError)
 
 log = logging.getLogger("data-box")
 
@@ -122,6 +123,9 @@ def build_app(state_dir=None) -> Starlette:
         interrupted = ledger.recover()
         if interrupted:
             log.warning("marked %d job(s) interrupted: they were running when data-box last stopped", interrupted)
+        purged = planning.purge_old()
+        if purged:
+            log.info("deleted %d plan folder(s) past the %g-day retention period", purged, config.retention_days())
         async with manager.run():
             try:
                 yield

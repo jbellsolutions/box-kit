@@ -23,19 +23,18 @@ from starlette.middleware import Middleware
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
 
-from . import browseruse, rest
+from . import browseruse, rest, tools
+from .browserbase import BrowserbaseUnavailable
+from .cloud import CloudUnavailable
+from .decide import DecisionUnavailable
 from .browseruse import BrowserUseUnavailable
-from .guard import GUARD, GuardDown
-from .jev import JevUnavailable
 from .lock import LaneBusy
 from .orgo import OrgoUnavailable
 from .security import UnsafeUrl
-from .steel import SteelUnavailable
 from .tools import HANDLERS, offered_tools, status
 
 # A refusal or an outage the caller can act on. These come back as {"error": ...} answers.
-EXPECTED = (UnsafeUrl, LaneBusy, ValueError, OrgoUnavailable, SteelUnavailable, JevUnavailable, GuardDown,
-            BrowserUseUnavailable)
+EXPECTED = (UnsafeUrl, LaneBusy, CloudUnavailable, BrowserbaseUnavailable, ValueError, OrgoUnavailable, BrowserUseUnavailable, DecisionUnavailable)
 
 log = logging.getLogger("browser-box")
 TOKEN = os.getenv("BB_TOKEN", "")
@@ -144,17 +143,24 @@ def build_app() -> Starlette:
     @asynccontextmanager
     async def lifespan(_app):
         async with manager.run():
-            GUARD.start()
             if browseruse.configured():
-                # A browser task still running now belongs to a gateway that died holding the lane,
-                # and that lane was freed with it: stop it before anything else uses the browser.
+                # A browser task still running now belongs to a gateway that died: its caller is gone,
+                # so stop it rather than let it spend on nobody's behalf.
                 orphan = await browseruse.cancel()
                 if orphan and orphan.get("cancelled"):
                     log.warning("stopped a browser task left running by a previous gateway")
+            cloud = tools.cloud_client()
+            if cloud is not None:
+                # Hosted browsers a previous gateway created and never stopped still bill: stop them.
+                strays = await cloud.stop_strays()
+                if strays:
+                    log.warning("stopped %d Browser Use browser(s) left running by a previous gateway", strays)
             try:
                 yield
             finally:
-                await GUARD.stop()
+                store = tools.sessions_store()
+                if store is not None:
+                    await store.close_all()      # stopping a browser is what saves its profile's logins
 
     return Starlette(
         routes=[Route("/health", health), Route("/status", status_route), *rest.routes(authorized, run_tool),

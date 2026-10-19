@@ -5,11 +5,12 @@ Use a server when agents on other machines need to reach the boxes. On your own 
 
 ## Size
 
-- **browser-box** runs a real Chromium. Measured: the browser sat around 0.7 GB and climbed to
-  about 1.1 GB during use; the Browser-Use agent peaked at about 330 MB. Give it **2 vCPU / 4 GB**.
-  Not 1 vCPU / 2 GB: that is how a browser gets killed for memory mid-task.
+- **browser-box** runs no browser: its browsers are hosted (Browser Use Cloud, Browserbase as the
+  backup). Measured on a 1 vCPU / 2 GB server with 2 GB swap: 10 reads at once in 4 s, 4 browser
+  tasks at once in 73 s, the Browser-Use agent peaking at about 450 MB (roughly 110 MB a task).
+  Idle, the gateway is about 45 MB.
 - **data-box** runs no browser and is capped at 600 MB.
-- Both on one server: start at 2 vCPU / 4 GB with 2 GB of swap, and watch `docker stats`
+- Both on one server: 1 vCPU / 2 GB with 2 GB of swap is enough to start; watch `docker stats`
   before adding more work.
 
 ## Steps (Ubuntu 24.04)
@@ -26,20 +27,12 @@ git clone https://github.com/jbellsolutions/box-kit && cd box-kit
 make up && make status
 ```
 
-### Keep the browser off your private network — not optional
+### No egress firewall to add
 
-The server checks every address it is asked to open, but once the browser has a page,
-Chromium does its own networking. Deny its container network everything private:
-
-```bash
-STEEL_NET=$(docker network inspect browser-box_box -f '{{(index .IPAM.Config 0).Subnet}}')
-for range in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 127.0.0.0/8; do
-  sudo iptables -I DOCKER-USER -s "$STEEL_NET" -d "$range" -j DROP
-done
-sudo iptables -I DOCKER-USER 1 -s "$STEEL_NET" -d "$STEEL_NET" -j ACCEPT   # must be line 1
-sudo iptables -I INPUT -s "$STEEL_NET" -m conntrack --ctstate NEW -j DROP  # no reaching the host
-sudo apt-get install -y iptables-persistent
-```
+No browser runs on the server, so there is no browser network to fence off. The gateway checks
+every address it is asked to open, on every redirect, and refuses loopback, private, link-local
+and file addresses; the hosted browsers live on the providers' networks, not yours. If an older
+kit left `iptables` rules for a Steel subnet, they are harmless and can be removed.
 
 ### HTTPS
 
@@ -60,7 +53,10 @@ with the tokens from `make env`.
 
 ## Keys
 
-Add them to `server/browser-box/.env` and `server/data-box/.env`, then `make up` again. Each
+Add them to `server/browser-box/.env` and `server/data-box/.env`, then `make up` again. To start
+browsing, browser-box needs only `BROWSER_USE_API_KEY` (pay as you go, no subscription); add
+`BROWSERBASE_API_KEY` for the backup lane. On Browserbase's Free plan, also set
+`BB_BROWSERBASE_MONTHLY_HOURS=1` and `BB_BROWSERBASE_MAX_CONCURRENT=3` to match it. Each
 file lists every key it understands and what it switches on. `status` on each server shows
 what is configured and what it has spent recently.
 

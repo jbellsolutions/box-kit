@@ -1,0 +1,133 @@
+{
+ "tool": "firecrawl",
+ "home": "https://www.firecrawl.dev",
+ "terms_note": null,
+ "sources": [
+  {
+   "url": "https://docs.firecrawl.dev/llms.txt",
+   "path": "llms.txt",
+   "why": "the docs index"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/llms-full.txt",
+   "path": "llms-full.txt",
+   "why": "every docs page in one file"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/billing.md",
+   "path": "billing.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/rate-limits.md",
+   "path": "rate-limits.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/advanced-scraping-guide.md",
+   "path": "advanced-scraping-guide.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/v2-introduction.md",
+   "path": "api-reference/v2-introduction.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/errors.md",
+   "path": "api-reference/errors.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/scrape.md",
+   "path": "features/scrape.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/search.md",
+   "path": "features/search.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/crawl.md",
+   "path": "features/crawl.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/map.md",
+   "path": "features/map.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/batch-scrape.md",
+   "path": "features/batch-scrape.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/llm-extract.md",
+   "path": "features/llm-extract.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/proxies.md",
+   "path": "features/proxies.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/enhanced-mode.md",
+   "path": "features/enhanced-mode.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/fast-scraping.md",
+   "path": "features/fast-scraping.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/developer-guides/usage-guides/choosing-the-data-extractor.md",
+   "path": "developer-guides/usage-guides/choosing-the-data-extractor.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/scrape.md",
+   "path": "api-reference/endpoint/scrape.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/search.md",
+   "path": "api-reference/endpoint/search.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/map.md",
+   "path": "api-reference/endpoint/map.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/crawl-post.md",
+   "path": "api-reference/endpoint/crawl-post.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/crawl-get.md",
+   "path": "api-reference/endpoint/crawl-get.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/crawl-delete.md",
+   "path": "api-reference/endpoint/crawl-delete.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/crawl-get-errors.md",
+   "path": "api-reference/endpoint/crawl-get-errors.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/batch-scrape.md",
+   "path": "api-reference/endpoint/batch-scrape.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/batch-scrape-get.md",
+   "path": "api-reference/endpoint/batch-scrape-get.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/batch-scrape-delete.md",
+   "path": "api-reference/endpoint/batch-scrape-delete.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/batch-scrape-get-errors.md",
+   "path": "api-reference/endpoint/batch-scrape-get-errors.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/credit-usage.md",
+   "path": "api-reference/endpoint/credit-usage.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/credit-usage-historical.md",
+   "path": "api-reference/endpoint/credit-usage-historical.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/queue-status.md",
+   "path": "api-reference/endpoint/queue-status.md"
+  }
+ ]
+}
