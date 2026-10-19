@@ -12,7 +12,7 @@ Two models can run in it, both opt-in: Jev (behind `act`) only picks which eleme
 Browser-Use (behind `task`) plans steps for a goal you hand over. Neither decides what you are
 trying to do.
 
-Repo: `https://github.com/jbellsolutions/browser-box`
+Repo: `https://github.com/jbellsolutions/box-kit` (the server is in `server/browser-box`)
 
 ---
 
@@ -175,7 +175,7 @@ Or a project `.mcp.json` — both expansion forms are verified against Claude Co
 ### CLI
 
 ```bash
-pipx install ./cli          # from a clone; git+https needs auth while the repo is private
+pipx install ./server/browser-box/cli   # from a box-kit clone
 bb login --url https://your-box --token <BB_TOKEN>
 
 bb status
@@ -194,8 +194,8 @@ bb tools
 ### Plugin
 
 ```
-/plugin marketplace add jbellsolutions/browser-box
-/plugin install browser-box@browser-box
+/plugin marketplace add jbellsolutions/box-kit
+/plugin install browser-box@box-kit
 ```
 
 Set `BROWSER_BOX_URL` and `BROWSER_BOX_TOKEN` first.
@@ -210,9 +210,10 @@ running does not need provisioning, and `make up` on a live host is safe but poi
 ### Host requirements
 
 **Ubuntu 24.04 with Docker.** No browser runs on the host, so there is no Chromium to size it
-for: the compose caps are 256 MB (gateway) and 1200 MB (agent-browseruse). The live droplet is
-2 vCPU / 4 GB; a smaller one has not been tried. You need a Browser Use Cloud key
-(`BROWSER_USE_API_KEY`) in `.env`.
+for: the compose caps are 256 MB (gateway) and 1200 MB (agent-browseruse). A box runs fine on
+1 vCPU / 2 GB with 2 GB swap (10 reads at once in 4 s, 4 tasks at once in 73 s). You need a Browser
+Use Cloud key (`BROWSER_USE_API_KEY`) in `.env`: pay as you go, no subscription, $1 free credit on
+sign-up. Browserbase's $0 Free plan is enough for the emergency lane (`BROWSERBASE_API_KEY`).
 
 ```bash
 # Docker, swap, firewall
@@ -225,7 +226,7 @@ sudo ufw allow 22 && sudo ufw allow 443 && sudo ufw --force enable
 ### Bring the stack up
 
 ```bash
-gh repo clone jbellsolutions/browser-box && cd browser-box
+git clone https://github.com/jbellsolutions/box-kit && cd box-kit/server/browser-box
 cp .env.example .env
 make token                      # paste the value into BB_TOKEN in .env
 chmod 600 .env

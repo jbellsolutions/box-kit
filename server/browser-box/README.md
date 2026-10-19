@@ -486,9 +486,9 @@ sudo sed "s|{\$BB_DOMAIN}|box.example.com|" Caddyfile | sudo tee /etc/caddy/Cadd
 sudo systemctl reload caddy
 ```
 
-**Sizing.** The live droplet is 2 vCPU / 4 GB, chosen when Chromium ran on it. The compose caps
-now total about 1.5 GB (gateway 256 MB, agent-browseruse 1200 MB), but a smaller droplet has not been
-tried here.
+**Sizing.** A 1 vCPU / 2 GB droplet with 2 GB swap ($12/mo). The compose caps total about
+1.5 GB (gateway 256 MB, agent-browseruse 1200 MB); measured there, 10 reads at once took 4 s and 4
+tasks at once 73 s, with agent-browseruse peaking at 444 MiB.
 
 ## Develop
 
