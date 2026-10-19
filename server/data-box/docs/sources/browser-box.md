@@ -1,6 +1,6 @@
 # browser-box
 
-**Status (2026-09-23).** browser-box is live at `https://your-box.example.com` ([repo](https://github.com/jbellsolutions/browser-box)). data-box is not pointed at it yet; that happens in M3.
+**Status (2026-09-23).** browser-box is live at `https://your-box.example.com` ([repo](https://github.com/jbellsolutions/browser-box)). data-box is not pointed at it yet; it becomes scrape rung 6, the last one, in D3.
 
 ## What it gives data-box
 

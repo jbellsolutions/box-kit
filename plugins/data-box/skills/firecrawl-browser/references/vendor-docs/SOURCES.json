@@ -1,0 +1,51 @@
+{
+ "tool": "firecrawl-browser",
+ "home": "https://www.firecrawl.dev",
+ "terms_note": null,
+ "sources": [
+  {
+   "url": "https://docs.firecrawl.dev/features/browser.md",
+   "path": "features/browser.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/features/interact.md",
+   "path": "features/interact.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/advanced-scraping-guide.md",
+   "path": "advanced-scraping-guide.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/billing.md",
+   "path": "billing.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/browser-create.md",
+   "path": "api-reference/endpoint/browser-create.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/browser-execute.md",
+   "path": "api-reference/endpoint/browser-execute.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/browser-list.md",
+   "path": "api-reference/endpoint/browser-list.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/browser-delete.md",
+   "path": "api-reference/endpoint/browser-delete.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/scrape-execute.md",
+   "path": "api-reference/endpoint/scrape-execute.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/endpoint/scrape-browser-delete.md",
+   "path": "api-reference/endpoint/scrape-browser-delete.md"
+  },
+  {
+   "url": "https://docs.firecrawl.dev/api-reference/errors.md",
+   "path": "api-reference/errors.md"
+  }
+ ]
+}

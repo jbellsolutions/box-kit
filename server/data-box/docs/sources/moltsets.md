@@ -3,11 +3,11 @@
 **Status (2026-09-23).**
 - **Key:** verified through the free account and billing calls, and set on the droplet.
 - **Plan:** a subscription with fair-use limits. Enrichment, for example, is limited to 75k a week.
-- **Wiring:** nothing calls MoltSets yet. It arrives in M4, as a `run` source.
+- **Wiring:** tier 1, wired in D2. It runs only inside an approved plan, and its contact reveal (`linkedin_to_*`) only on the plan's deduped shortlist, never at discovery scale. Until D2 every survey lists it with that reason.
 
 MoltSets is one of two contact-data services approved for data-box as an explicit exception to the "no paid enrichment" rule; DiscoLike is the other. The exception comes with conditions:
-- MoltSets runs **only when a caller names it**, with a cap. It is never on Jev's automatic path.
-- In lead intent, it runs only after a lead has qualified.
+- MoltSets is tier 1, but runs **only inside a plan the user approved**, within that plan's budget. It is never on Jev's automatic path.
+- Contact reveal runs only on a plan's deduped shortlist, and in lead intent only after a lead has qualified.
 
 ## What it gives data-box
 

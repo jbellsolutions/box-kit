@@ -1,0 +1,15 @@
+{
+ "tool": "jev",
+ "home": "https://docs.typesafe.ai",
+ "terms_note": "TypeSafe publishes these docs for developers and AI agents (llms.txt, llms-full.txt); mirrored unchanged. The fuller page-by-page mirror with raw copies lives in the repo at skills/typesafe-ai/references/docs/.",
+ "sources": [
+  {"url": "https://docs.typesafe.ai/llms.txt", "path": "llms.txt", "why": "the docs index"},
+  {"url": "https://docs.typesafe.ai/llms-full.txt", "path": "llms-full.txt", "why": "every page in one file"},
+  {"url": "https://docs.typesafe.ai/api.md", "path": "api.md", "why": "the HTTP API reference for POST /v1/systemone"},
+  {"url": "https://docs.typesafe.ai/models.md", "path": "models.md", "why": "model names and versions"},
+  {"url": "https://docs.typesafe.ai/confidence.md", "path": "confidence.md", "why": "how confidence differs from probability; the basis of certification"},
+  {"url": "https://docs.typesafe.ai/patterns/confidence-routing.md", "path": "patterns/confidence-routing.md", "why": "act on confident answers, hand the rest on"},
+  {"url": "https://docs.typesafe.ai/model-jaggedness/jev-1.13.md", "path": "model-jaggedness/jev-1.13.md", "why": "known weak spots"},
+  {"url": "https://docs.typesafe.ai/sdk/python/api/exceptions.md", "path": "sdk/python/exceptions.md", "why": "errors, rate limits, timeouts"}
+ ]
+}

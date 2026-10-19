@@ -4,5 +4,6 @@ allowed-tools: [Read]
 ---
 
 Call the data-box `status` tool. Report in a few lines: overall health, which sources are
-configured (and which are not), jobs running, and recent spend. If the tool is unreachable, say
+configured (and which are not), the Firecrawl balance, plans awaiting approval, jobs running, and
+recent spend. If the tool is unreachable, say
 so and point to the `data-box` skill's "Running your own" section.

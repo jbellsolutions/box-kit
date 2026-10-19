@@ -1,0 +1,22 @@
+{
+ "tool": "discolike",
+ "home": "https://www.discolike.com",
+ "terms_note": null,
+ "sources": [
+  {
+   "url": "https://docs.discolike.com/llms.txt",
+   "path": "llms.txt",
+   "why": "the docs index"
+  },
+  {
+   "url": "https://docs.discolike.com/llms-full.txt",
+   "path": "llms-full.txt",
+   "why": "the full API reference"
+  },
+  {
+   "url": "https://api.discolike.com/v1/openapi.json",
+   "path": "openapi.json",
+   "why": "endpoint names and parameters: the source of truth"
+  }
+ ]
+}

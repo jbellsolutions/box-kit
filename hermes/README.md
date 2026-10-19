@@ -4,7 +4,14 @@
    ```bash
    cp -R hermes/skills/browser-box hermes/skills/data-box ~/.hermes/skills/
    ```
-   (For a profile: `~/.hermes/profiles/<profile>/skills/`.)
+   (For a profile: `~/.hermes/profiles/<profile>/skills/`.) `data-box` is a category: the router
+   plus one skill per data tool (Firecrawl, Alexandria, Firecrawl's browser, DiscoLike, MoltSets,
+   GetLeads, Consulti, Lead Radar, Jev). If a profile already has a skill with one of those names,
+   use the installer instead; it installs the clashing ones as `data-box-<name>`, adds files only
+   under `skills/data-box/`, and never overwrites a file you edited:
+   ```bash
+   python3 plugins/data-box/hermes/install.py <profile> --dry-run   # then without --dry-run
+   ```
 2. **Servers.** Add the two entries from [config-snippet.yaml](config-snippet.yaml) under
    `mcp_servers:` in `~/.hermes/config.yaml` (or the profile's `config.yaml`).
 3. **Tokens.** Add `BROWSER_BOX_TOKEN=` and `DATABOX_TOKEN=` lines to `~/.hermes/.env` (or the
