@@ -5,7 +5,7 @@ runs many at once (the plan's own ceiling, 10 at $0 spend, 50 after $100) at $0.
 billed by the minute.
 
 **Fresh, clean browsers only.** This box never sends a ``profileId`` and never calls the profiles API.
-Other tools keep logged-in profiles on Browser Use; nothing here can open, change or
+Other tools (for example a lead-gen tool) keep logged-in profiles on Browser Use; nothing here can open, change or
 delete one, whatever it is tagged. The only browsers this box ever stops are ones it created itself,
 recorded by id in ``BB_OWNED_BROWSERS`` the moment Browser Use answers.
 

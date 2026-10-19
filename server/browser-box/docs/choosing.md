@@ -54,7 +54,7 @@ after $100); there is no queue on the box. Measured 2026-10-12: Hacker News with
 
 `session` runs on Browser Use Cloud with `BROWSER_USE_API_KEY`; `act` needs `TYPESAFE_API_KEY` as well.
 The box keeps no logins and never touches a Browser Use profile: the account also holds other tools'
-logged-in profiles, and a browser here is always fresh and clean.
+logged-in profiles (for example a lead-gen tool), and a browser here is always fresh and clean.
 
 - **A session is a fresh, logged-out browser that stays open between calls.** `session(action="create")`
   opens it and returns a `live_url` (a view of it); `act` and `read` take its `session_id`. The actions

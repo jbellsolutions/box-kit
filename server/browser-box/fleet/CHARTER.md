@@ -128,22 +128,24 @@ The box charter has five. Several cannot hold at 100 to 1,000 identities ("one b
   Browserbase-homed identity is never described to a client as unlinkable (Q-13). Invariant 9 lists the
   network side and the rule that gates the first Browserbase identity.
 
-### 4. Humans authenticate. Agents never type credentials or solve challenges.
+### 4. Logins are handled deliberately. Agents may type credentials.
 
-- A human logs in once per identity through a time-limited, authenticated viewer link brokered by
-  `fleetd`. The human holds the identity's lease while connected (D14).
-- Agents never type credentials, never answer 2FA, never solve a CAPTCHA, never click through a
-  checkpoint on a client account. A login wall, checkpoint, 2FA or CAPTCHA pauses the identity
-  (`needs_reauth` or `checkpoint`) and notifies the owner with a fresh link. Login is never retried
-  automatically.
+**Justin, 2026-10-19 (DECISIONS, "guardrails, not rules"): typing passwords is allowed.**
+- An agent may log an identity in by typing its credentials, taken from the client's secret store at
+  run time. The value never goes into a prompt, a log, a note or the repo.
+- A human can also log in once per identity through a time-limited, authenticated viewer link brokered
+  by `fleetd`; the human holds the identity's lease while connected (D14).
+- A checkpoint, 2FA or CAPTCHA pauses the identity (`needs_reauth` or `checkpoint`) and notifies the
+  owner with a fresh link, unless the client's configuration says how to handle it. Repeated failed
+  logins are not retried in a loop.
 - No CAPTCHA-solving feature is ever switched on. Browserbase solves CAPTCHAs by default on all
   sessions (`https://docs.browserbase.com/platform/identity/captcha-solving.md`), so every
   Browserbase identity sets `solveCaptchas: false`, and D11 has `identity create` refuse any other
   value. Steel Cloud's solver is Cloud-only
   (`https://docs.steel.dev/overview/stealth/captcha-solving.md`) and unused.
 - Stagehand `variables` keep a value out of the act prompt only; the typed value then shows in the
-  accessibility tree (D14, `research/dossiers/stagehand.md` §1.9). So "agents never type credentials"
-  is a rule, not something a feature can stand in for.
+  accessibility tree (D14, `research/dossiers/stagehand.md` §1.9), so a typed password can appear in
+  page snapshots: keep snapshots of login pages out of logs and model context.
 - The fleet does not record viewer sessions or log what a human types in them (proposed addition;
   D11 already sets `recordSession: false` for Browserbase).
 - **This is a plan, not an established path.** The viewer is untested for Enter, Backspace, Tab,
@@ -288,8 +290,11 @@ client's written acceptance of the platform-terms risk.**
   Browserbase-homed identity for any logged-in client account until Q-07 is answered**, and not before
   Justin has confirmed BB-O1 and BB-O2 (invariant 9).
 
-### 9. The identity's browser reaches only the public web, through its own pinned proxy.
+### 9. The identity's browser goes out through its own pinned proxy.
 
+- **Private and internal addresses are allowed when a client's configuration names them** (for
+  example, a client's own intranet or internal tool; Justin, 2026-10-19). By default the URL checks
+  below still apply, so nothing reaches a private address by accident.
 - Extends box invariant 4. Every URL is checked before connection and every request in flight.
   `security.py` is reused verbatim, copied at a pinned box commit with a test that fails if it drifts
   (D16). The box's `Guard` class is reused, but its gating contract (wait until ready, re-gate after
@@ -348,40 +353,40 @@ client's written acceptance of the platform-terms risk.**
 - Notes about one client stay in that client's folder (invariant 8). No secret goes in a note.
 - Open: where the vault lives relative to droplets and the Jev trial (O-14).
 
-## Red lines
+## Guardrails, not red lines
 
-The fleet refuses these in code, not by prompt. A refusal is an answer, not an obstacle. The red lines bind
-the fleet, not the rest of a Hermes profile: a profile that also holds a social-platform toolkit, a
-people-data server or a desktop-control tool can cross them with no fleet involvement. So they are only as
-strong as the profile's other tools, and the control is the provisioner's tool policy
-([hermes/README.md](hermes/README.md) section 2.4), never a prompt (G11-8).
+**Justin, 2026-10-19 (DECISIONS, "guardrails, not rules").** The fleet has no platform red lines. This
+repository is a template cloned for each client, and each client has its own use case, so platform conduct
+is handled by **guardrails**: questions to answer and best practices to follow, set per client in that
+client's configuration. A rule stops progress; a guardrail is a situation to identify and a decision to
+make. No agent refuses a job because it touches one of the topics below. It names the guardrail, follows
+the best practice, and asks the owner when the client's configuration does not answer it.
 
-| Never | Why (source) |
-|---|---|
-| Fake accounts or personas, or accounts for a client without their express permission | Facebook ToS §3.1, Instagram ToS, X authenticity rules, TikTok ToS (`research/dossiers/social-platforms.md` §2 Q4) |
-| Ban evasion: a new account, identity or IP to get around a ban or restriction; circumventing a platform's technical access measures. Replacing an IP the vendor took away is allowed, but only through the test under "Replacing an IP is not ban evasion" | Facebook ToS §3.1 and §3.2, TikTok Community Guidelines (same table). Fingerprint spoofing is **Pending Justin (Q-04); default: none** |
-| Any outbound message to a person without prior contact or opt-in (no cold DMs). Replies go to people who wrote first, inside the platform's window, or who clearly asked to be contacted | Meta opt-in rule, TikTok "prohibited from initiating a conversation", X automation rules, LinkedIn member-action rule (SP-10) |
-| Automated engagement, on every platform: likes, bulk follows or unfollows, automated reposts, engagement pods, bought engagement | X automation rules (social-platforms V-7), Meta Spam policy, TikTok fake-engagement rules |
-| **On X only:** hiding replies in an automated manner. The fleet hides no reply on X, by any route. This is not a rule for Facebook and Instagram, where hiding a comment on the client's own content is moderation (rules under "Moderation") | X automation rules: "You may not like posts or hide replies in an automated manner" (social-platforms V-7, Wayback x-automation 20261001) |
-| Scraping platforms for lead data, logged in or out; building people databases from profiles; using platform APIs to profile users | Meta Platform Terms §3.a.v, X developer guidelines, LinkedIn §8.2, Instagram ToS (SP-11). Consent-based channels are not covered by this line (Q-14) |
-| Identical or substantially similar posts on one account, across one client's accounts, or across clients. The scope and the test are under "Duplicate content" | X automation rules: "duplicative or substantially similar posts on one account or over multiple accounts you operate" (social-platforms V-7); Meta repetitive-content spam. The check runs at approval and again at publish |
-| AI auto-replies on X without X's prior written approval; keyword-triggered auto-replies; auto-posting about trends; more than one automated reply per interaction | X automation rules (social-platforms V-7) |
-| Any agent-driven browser on x.com. Enforced by the host table under "Where an agent may point the browser" | X developer guidelines (SP-1) |
-| LinkedIn messages or connection requests sent by a bot or script, and any LinkedIn action by browser automation. Posts and comments go through the official API; agents draft the rest and a human sends | LinkedIn User Agreement §8.2, Messages API rule (SP-8) |
-| Competitive benchmarking on X | X developer guidelines ("prohibited competitive analysis"); `research/verification/social-platforms.md` missed issue 5 |
-| Agent-driven browsing of social platforms for research (trends, competitors, audiences, hashtags, other accounts' pages), logged in or out, from any identity. Public performance data comes only through the client's own API analytics. A client's request such as "grow my TikTok fast" does not change this (G11-9) | TikTok bans automated extraction (D2; `research/dossiers/social-platforms.md` §1); X developer guidelines (SP-1); LinkedIn User Agreement §8.2; Meta Terms §3.2 is a scraping clause with a permission carve-out, so the firmer Meta basis is its Community Standards on scripted account use (SP-2, SP-9). Visual QA of the client's own public pages is not this (D2) |
-| Downloading TikTok content to repost elsewhere | TikTok Accounts API prohibited uses |
-| Paid enrichment services (Clay, Apollo, Hunter, ZoomInfo, Ocean.io and the like) as part of how an agent gathers data | Justin's standing rule. The agent does enrichment itself with its own browser on public sites Justin has cleared (N-4; until then, the listed test pages), honours robots.txt, rate-limits per domain, and stores the source URL and fetch time with every datum |
+Platforms change their rules often. Each client's guardrails are re-checked against the platforms' current
+terms whenever a platform announces a change, and updated so the client adapts and stays compliant. The
+sources in the right-hand column are where to look, not limits on what the fleet may build.
 
-## Tests behind the red lines
+| Topic | Best practice (the default a client's configuration can change) | Where to check the platform's current rule |
+|---|---|---|
+| Accounts | Accounts are created for the client with their permission: for their people, including a hire who starts later or a role they are filling. Record who asked and what the account is for | Facebook ToS §3.1, Instagram ToS, X authenticity rules, TikTok ToS (`research/dossiers/social-platforms.md` §2 Q4) |
+| Platform restrictions and rule changes | Adapt to new platform rules quickly and honestly. When an account is restricted, find out why and fix the cause; do not use a new account or IP just to get around a restriction. Replacing an IP a vendor took away is normal (best practice under "Replacing an IP") | Facebook ToS §3.1 and §3.2, TikTok Community Guidelines. Fingerprint spoofing is **Pending Justin (Q-04)** |
+| DMs and prospecting | Outreach to target accounts is part of the work: identify good-fit accounts, warm them (ads, engagement), then message on social and by email. Keep it targeted, personal and high quality, at a pace the platform tolerates, with per-client limits | Meta messaging rules, TikTok messaging rules, X automation rules, LinkedIn member-action rule (SP-10) |
+| Engagement | Following, reposting, liking and commenting on content the client has approved are allowed, including the client's profiles supporting its main account. Per-client limits and a human-like pace | X automation rules (social-platforms V-7), Meta Spam policy, TikTok fake-engagement rules |
+| Hiding replies on X | Hide replies on X by hand or with care; X's automation rules mention automated hiding. Facebook and Instagram moderation is under "Moderation" | X automation rules (social-platforms V-7) |
+| Repeated content | Vary posts across accounts and clients. The check under "Duplicate content" warns the approver | X automation rules (V-7); Meta repetitive-content spam |
+| Automated replies on X | Keep a human in the loop for X replies; check whether X's approval is needed for the use case | X automation rules (V-7) |
+| X (x.com) | Agent-driven browsing on X is allowed with a human in the loop | X developer guidelines (SP-1) |
+| LinkedIn | Messages, connection requests and browser automation are allowed. Best practice: high-quality, personal messages; a human sends, or approved automation is used, within LinkedIn's limits | LinkedIn User Agreement §8.2, Messages API rule (SP-8) |
+| Competitive analysis on X | Check X's developer terms for the use case | X developer guidelines; `research/verification/social-platforms.md` missed issue 5 |
+| Research on social platforms | Agents may browse social platforms for research (trends, competitors, audiences, hashtags, other accounts' pages) at a human pace | TikTok, X, LinkedIn and Meta terms (SP-1, SP-2, SP-9) |
+| Downloading content (TikTok and others) | Downloading is allowed. Before reposting, check the rights to the content and the platform's terms | TikTok Accounts API terms |
+| People lists and lead data | Allowed (DECISIONS, "people lists, removed") | Meta Platform Terms §3.a.v, X guidelines, LinkedIn §8.2 |
+| Paid enrichment (Clay, Apollo, Hunter, ZoomInfo, Ocean.io and the like) | **Justin's standing rule: not used.** The agent does enrichment itself with its own browser, rate-limits per domain, and stores the source URL and fetch time with every datum | Justin's rule |
 
-A red line that only says "never" cannot be refused in code. These four have a test the code can run.
-All four are **planned**. They run in the policy gate ahead of every tool call (ARCHITECTURE §2.1 C18;
-MILESTONES P3.2) and in gate G (§4.3); the rules below are what the charter requires of them. A refusal
-here is non-approvable: it creates no approval row, and no per-action approval unlocks it. Only a change
-to the policy does, and that is Justin's answer. DECISIONS D2 names the code `refused` (D17 is where it
-is defined). It is an answer, returned before any wake or spend, with the reason in its details.
-(`duplicate_content` is the one exception: it is not a red-line refusal but a prompt to rewrite.)
+## Guardrail checks
+
+These checks are **planned**. Each one **warns or asks the owner**; none refuses on its own. A client's
+configuration sets what each check does for that client.
 
 ### Duplicate content
 
@@ -413,10 +418,11 @@ which is narrower than X's rule, and must be brought in line (S02-5).
   (X: one automated reply per interaction). How a reply template that repeats by design is checked is set
   with the same measurement.
 
-### Replacing an IP is not ban evasion
+### Replacing an IP (best practice)
 
-A vendor can take an IP away. Replacing it is then legitimate. Replacing it to get around a platform's
-restriction is the red line. Code cannot read intent, so it reads the account's history.
+A vendor can take an IP away. Replacing it is then legitimate. When an account has a restriction or
+warning in its history, the replacement is flagged to the owner to confirm the reason, not refused. The
+points below are the default checks; "refused" in them means "held for the owner's yes".
 
 - **Owner-only.** A replacement IP is a new device generation and a fresh human login (D3). Only the
   owner starts it. Buying the IP needs Justin's yes and a non-zero cap (Q-06).
@@ -450,8 +456,8 @@ moderation too (§3.2). D2 promises comment moderation. The rules:
   own post.
 - **Not for criticism.** Rules target spam, scams, abuse and links the owner has listed. A complaint or a
   bad review is answered, or escalated to a person. It is not hidden.
-- **X:** the fleet hides nothing on X, by any route (`refused`). Changing that needs X's rule read
-  to allow it, and Justin's yes.
+- **X:** a guardrail, not a refusal. Check X's current automation rule for the use case, and prefer a
+  person hiding replies on X.
 - **Names are not final.** The scenario walks propose a `moderate` publish kind (hide, unhide, delete)
   and ledger kinds `hide` (reversible) and `delete_other` (irreversible). ARCHITECTURE's publish kinds
   (§5.3) and ledger kinds (§3.6) must carry them; they listed only `delete` when the walks ran. Align the
@@ -459,31 +465,10 @@ moderation too (§3.2). D2 promises comment moderation. The rules:
 
 ### Where an agent may point the browser
 
-A host policy, table-driven and deterministic. `fleetd` runs it on every tool call that carries or
-follows a URL (`navigate`, `act`, `extract`, `task`, `run`), and the in-browser Guard enforces it on
-top-level and frame navigations. A procedure's own `authority.hosts` is not enough, because `extract`
-and `task` are not procedures (G11-1). This table is what turns "x.com is refused in code" and "no
-scraping for people" from promises into refusals (S13-9).
-
-| Where | Agent on an `account` identity | Agent on a `research` identity |
-|---|---|---|
-| x.com, twitter.com | Denied | Denied |
-| linkedin.com | Denied | Denied |
-| Facebook, Instagram, TikTok, and any other social platform host not named above: the identity's own handle or page, the client's own Group, and the login flow | Allowed (reads, and approved steps) | Denied |
-| The same hosts, anything else (search, hashtags, explore, other accounts' pages) | Denied for free-form `navigate`, `act`, `extract` and `task`. A released procedure may reach only what it declares in `authority.hosts` (it is digest-pinned and owner-accepted), and never x.com, linkedin.com or a people list | Denied |
-| On any social host: followers, following, likes or likers, group members and similar people lists | Denied, for `navigate`, `extract`, `task` and `act` | Denied |
-| The client's own public site, and hosts on the identity's owner-managed list | Allowed | n/a |
-| Open web for research | n/a | The listed public test pages only, until Justin clears more sites (**N-4**); then the sites he cleared, robots.txt honoured |
-| Private, internal, loopback or metadata addresses | Denied (invariant 9) | Denied |
-
-- The viewer is not a way around this table. D2's allowed-uses table gives X and LinkedIn no browser
-  identity (rows 6 and 7): a person uses their own device or session there. For identities that do have
-  a browser, the viewer has its own domain policy, open to the identity's platform hosts and their login
-  providers only (D4, G12-14). The client's own device is cleaner than the viewer (G12-10).
-- Until Justin answers N-4, `fleetd` refuses any `research` host that is not on the listed test pages
-  (`refused`). A profile that reads this charter does not start live runs on company sites.
-- Where the policy is enforced is written once in ARCHITECTURE and cited from the lead-gen and
-  Browser-Use guides, not restated in each (S13-8).
+**There is no fleet-wide host table** (removed by Justin, 2026-10-19, DECISIONS "guardrails, not rules").
+x.com, LinkedIn, other social sites, search and explore pages, other accounts' pages, people lists and the
+open web are not refused by host. Where a given client's agents browse is set in that client's
+configuration, using the guardrails above.
 
 ## What agents may do
 
@@ -496,9 +481,8 @@ scraping for people" from promises into refusals (S13-9).
   owner-set rule in an approved manifest (rules under "Moderation").
 - Write drafts for human approval (scope `draft`).
 - Report a wrong result or a site change with `feedback`; cancel a run they started.
-- Research the open web, read-only, on the listed public test pages or on sites Justin has cleared
-  (N-4): public company pages, JSON-LD, contact pages. No paid enrichment. Never a social platform: the
-  host table decides, and `fleetd` refuses.
+- Research the open web and social platforms: company pages, JSON-LD, contact pages, social profiles,
+  people lists. No paid enrichment. Follow the client's guardrails and a human pace.
 - Write run notes and daily notes into their own Obsidian vault folder.
 - Change fleet code on a branch, with tests, and open a pull request.
 
@@ -512,18 +496,16 @@ scraping for people" from promises into refusals (S13-9).
   owner-only (D17). Replacing an identity's IP is owner-only too, and only through the test under
   "Replacing an IP is not ban evasion". A Browserbase-homed identity is not created at all until BB-O1,
   BB-O2 and Q-07 are answered (invariants 8 and 9).
-- Run live research on any company site beyond the listed public test pages (lead generation
-  included). **Pending Justin (N-4); default: not allowed.** `fleetd` refuses hosts that are not listed.
 - Buy or apply for anything: proxies, a Browserbase account, anti-detect or patched-kernel licences,
   developer-app applications, spend caps (Q-02, Q-03, Q-06, Q-12).
 - Do any browser-driven write on Facebook Groups or on UI-only features of a Page, professional or
   TikTok business account. A person clicks by default; each action is approved; the client's written
-  risk acceptance is on file (Q-01). A personal Facebook profile or Instagram personal account gets no
-  browser identity at all. LinkedIn is not on this list: agents draft, a human sends.
+  risk acceptance is on file (Q-01). Personal profiles and LinkedIn follow the client's guardrails.
 - Confirm their own `needs_approval` step, approve or change a manifest, release or promote a
   procedure, or raise a ceiling, scope, budget or threshold. `dm` scope also needs the DM gate in
   invariant 8.
-- Loosen a guard, a refusal, a lease rule, an egress rule or a red line, even to make a test pass.
+- Change a client's guardrail settings, a lease rule or an egress rule, or loosen a check to make a
+  test pass.
 - Add a tool to `FLEET_TOOLS`, an engine, a System 1 or model provider, or a new route for client
   content (Q-07).
 - Touch the box, its containers, its Steel, or the live box host. Those belong to the box charter.
@@ -536,13 +518,9 @@ scraping for people" from promises into refusals (S13-9).
 
 ## What nobody does, ever
 
-- Cross a red line.
 - Put a token, key, password, cookie, proxy credential or state bundle in the repo, a commit message, a
   log, an issue, a doc, a Hermes memory or a vault note. Names of variables are fine. Values never.
-- Type credentials into a page, accept a password in chat, solve or pay to solve a CAPTCHA, answer a
-  2FA prompt, or click through a checkpoint on a client account.
-- Point the browser at a private, internal, loopback or metadata address, or try to get around a
-  refusal.
+  (Typing a password into a login page is allowed; see invariant 4.)
 - Export `BROWSER_FLEET_TOKEN` host-wide or share one token between profiles (HP-1).
 - Retry an effect whose outcome is uncertain.
 - Run two writers on one identity, or reuse an identity for a different client.

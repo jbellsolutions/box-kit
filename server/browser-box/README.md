@@ -18,8 +18,10 @@ rather hand over a whole goal than plan its steps. Neither decides what you are 
                                     │ └─ computer / task(computer) ──► Orgo (desktops, off-box)
 ```
 
-**Run your own:** a 1 vCPU / 2 GB VPS is enough, since no browser runs on the host. See
-[docs/operations.md](docs/operations.md).
+**Live:** a 1 vCPU / 2 GB DigitalOcean droplet ($12/mo) serves it at `https://your-box.example.com`
+(MCP at `/mcp`, HTTP/JSON at `/api/v1`, spec at `/openapi.json`). The address is a DigitalOcean
+Reserved IP, so it survives replacing the droplet. Connection details for agents, with the token,
+live in a private repo of your own, never here.
 
 | Read next | |
 |---|---|
@@ -313,7 +315,7 @@ What the code still does:
    that. Those happen on the provider's machines.
 3. **This box keeps no logins and never touches a Browser Use profile.** `cloud.py` refuses any API
    path containing "profile" before making the request, and no browser is created with a
-   `profileId`: the Browser Use account also holds other tools' logged-in profiles, and
+   `profileId`: the Browser Use account also holds other tools' logged-in profiles (for example a lead-gen tool), and
    touching one would be a serious incident. `live_url` lets whoever holds it drive that session's
    browser, so keep it to yourself. Crash cleanup stops only browsers this box created, by the ids
    it recorded (`BB_OWNED_BROWSERS`); it never searches the account.
@@ -486,7 +488,7 @@ sudo sed "s|{\$BB_DOMAIN}|box.example.com|" Caddyfile | sudo tee /etc/caddy/Cadd
 sudo systemctl reload caddy
 ```
 
-**Sizing.** A 1 vCPU / 2 GB droplet with 2 GB swap ($12/mo). The compose caps total about
+**Sizing.** The live droplet is 1 vCPU / 2 GB with 2 GB swap ($12/mo). The compose caps total about
 1.5 GB (gateway 256 MB, agent-browseruse 1200 MB); measured there, 10 reads at once took 4 s and 4
 tasks at once 73 s, with agent-browseruse peaking at 444 MiB.
 

@@ -3,7 +3,7 @@
 A session here is a handle on one hosted browser that stays open between calls, so act can work a
 page step by step and several agents can each have their own. It is never a login store: no profile
 is ever created, opened or touched (cloud.py refuses the profiles API outright). Logged-in work
-belongs to tools built for it, on their own profiles, never here.
+belongs to tools built for it (for example a lead-gen tool), on their own profiles, never here.
 
 Rules kept here:
 - one open browser per session; each session has its own lock, and there is no lock across sessions;

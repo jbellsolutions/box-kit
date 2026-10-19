@@ -24,7 +24,7 @@ There are two kinds of agent here: those **using** the box (browsing for a user)
 | Several steps you can name: open, click, type, scroll | `act` (up to 4 steps joined by "then") | `task` (slower, and failed state and SPA jobs in the benchmark) |
 | A whole goal you would rather not plan, e.g. a search | `task(surface="browser")` | `act` |
 | A browser of your own across several `act` calls, or one per agent | `session` create, pass its `session_id` to `act` and `read`, `release` when done | a session for a one-off read |
-| A logged-in site | not this box: it keeps no logins. Use a tool built for it | `session`, which is always logged out |
+| A logged-in site | not this box: it keeps no logins. Use a tool built for it (for example a lead-gen tool) | `session`, which is always logged out |
 | A full desktop | `computer` (you drive from screenshots) or `task(surface="computer")` | `read` |
 | To know why something failed | `status` | guessing |
 
@@ -84,6 +84,6 @@ The live box has no GitHub credentials: code arrives as a `git bundle`.
 
 ## Related repositories
 
-- Jev's own repository (private, not part of this kit). This repo no longer builds from it (the
+- Jev's own repository. This repo no longer builds from it (the
   `agent-jev` container, `JEV_DIR` and `JEV_REF` are gone; `act` calls TypeSafe's decision API
   directly). Its work in progress is not yours to change from here.

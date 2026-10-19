@@ -70,7 +70,7 @@ slips past them goes to the provider's network.
 3. **The box keeps no logins, and never touches a Browser Use profile.** `cloud.py` refuses any API
    path containing "profile" before making the request, and no browser is created with a
    `profileId`, because the Browser Use account also holds other tools' logged-in profiles
-  . A `session` is a fresh, logged-out browser that is gone once released or closed
+   (for example a lead-gen tool). A `session` is a fresh, logged-out browser that is gone once released or closed
    when idle. `live_url` lets whoever holds it drive that session's browser, so it is returned only
    to the caller that created the session and is never logged. Crash cleanup stops only browsers
    this box created, by the ids recorded in `BB_OWNED_BROWSERS`; it never searches the account.

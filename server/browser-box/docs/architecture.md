@@ -60,7 +60,7 @@ a bug fix is identical whether the caller used MCP or HTTP/JSON.
 stays open between calls, so `act` can work a page step by step and several agents can each have their
 own. The box keeps no logins: `cloud.py` refuses any API path containing "profile" before the request is
 made and no browser is created with a `profileId`, because the Browser Use account also holds other tools'
-logged-in profiles. The actions are `create`, `list` and `release`; a released session, or one
+logged-in profiles (for example a lead-gen tool). The actions are `create`, `list` and `release`; a released session, or one
 closed when idle, is gone and its id is refused. Each session has its own lock, so there is at most one
 open browser per session and calls on one `session_id` wait for each other (`BB_SESSION_WAIT_SECONDS`),
 while different sessions run side by side. An idle session's browser closes after

@@ -187,7 +187,7 @@ class HostedAct(unittest.IsolatedAsyncioTestCase):
     async def test_an_id_this_box_did_not_create_is_not_a_session(self):
         """No id from anywhere else (another tool's profile, a guess) can reach a browser through this box."""
         store = Sessions(FakeCloud())
-        for foreign in ("p1", "3f2c-another-tools-profile", ""):
+        for foreign in ("p1", "3f2c-demand-gen-profile", ""):
             with self.assertRaises(ValueError):
                 store.get(foreign or "nope")
 

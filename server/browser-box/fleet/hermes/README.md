@@ -205,7 +205,7 @@ as strong as the profile's other tools**, and the control is the provisioner, no
 (CHARTER sentence still to be added, section 7).
 
 - **`mcp_servers`:** `browser_fleet`, plus only servers on an owner-kept allowlist. A server that can post,
-  DM, like, follow or read people on a social platform, a people-data or enrichment server, or a
+  DM, like or follow on a social platform, a paid enrichment server, or a
   desktop-control server is never on it. Hermes has `tools.include/exclude` keys per server
   (dossier 2.1, `official-docs`); `ctx.call_mcp` stays at its default, off.
 - **`agent.disabled_toolsets`:** `browser`, plus every other built-in toolset that can drive a browser or a

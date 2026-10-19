@@ -3,12 +3,19 @@
 Runbook for the live box. See [security.md](security.md) for the threat model and
 [architecture.md](architecture.md) for what each component is.
 
-## Sizing, measured
+## The live box
 
-On a 1 vCPU / 2 GB droplet with 2 GB swap: 10 reads at once in 4 s; 4 browser tasks at once in
-73 s, agent-browseruse peaking at 444 MiB (about 110 MB a task, so roughly 8–9 at once fit its
-1200 MB cap). Idle: gateway 43 MB, agent 35 MB. A droplet built from
-[deploy/droplet/cloud-init.yaml](../deploy/droplet/cloud-init.yaml) is ready for `make up`.
+- URL: `https://your-box.example.com` (MCP `/mcp`, HTTP/JSON `/api/v1`, liveness `/health`)
+- The address is DigitalOcean Reserved IP `your-box.example.com`: point it at a replacement droplet and
+  every client keeps working, with no reconfiguration
+- DigitalOcean droplet `browser-box-3`, region `nyc3`, size `s-1vcpu-2gb` ($12/mo),
+  built from [deploy/droplet/cloud-init.yaml](../deploy/droplet/cloud-init.yaml)
+- Code at `/opt/browser-box` on the droplet (a git repo fed by bundles; see below)
+- SSH as a key-only `deploy` user (no password auth), key registered in DigitalOcean
+- The token and how agents connect: a private repo of your own
+- Live since 2026-10-13. Measured there: 10 reads at once in 4 s; 4 browser tasks at once in 73 s,
+  agent-browseruse peaking at 444 MiB (about 110 MB a task, so roughly 8–9 at once fit its 1200 MB
+  cap). Idle: gateway 43 MB, agent 35 MB.
 
 ## Host requirements
 

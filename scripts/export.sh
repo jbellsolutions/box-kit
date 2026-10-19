@@ -35,7 +35,15 @@ find "$KIT/server" -type f \( -name '*.py' -o -name '*.md' -o -name '*.json' -o 
     -e 's/167-71-241-147\.sslip\.io/your-data-box.example.com/g' \
     -e 's/167\.71\.241\.147\.nip\.io/your-data-box.example.com/g' \
     -e 's/167\.71\.241\.147/your-data-box.example.com/g' \
-    -e 's/64\.225\.11\.38/your-box.example.com/g'
+    -e 's/64\.225\.11\.38/your-box.example.com/g' \
+    -e 's/ \(id 608577517\)//g' \
+    -e 's#(the )?private repo `jbellsolutions/browser-box-access`#a private repo of your own#g' \
+    -e 's#`jbellsolutions/jev-automation`: Jev#Jev#g' \
+    -e 's#`?jbellsolutions/jev-automation`?#Jev'"'"'s private repository#g' \
+    -e 's/\(e\.g\. DemandGen\)/(for example a lead-gen tool)/g' \
+    -e 's/\(DemandGen\)/(for example a lead-gen tool)/g' \
+    -e 's/a DemandGen profile/another tool'"'"'s profile/g' \
+    -e 's/DemandGen/other tools/g'
 
 echo "$BB_REF" > "$KIT/server/browser-box/.exported-from"
 echo "$DB_REF" > "$KIT/server/data-box/.exported-from"

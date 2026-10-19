@@ -57,10 +57,14 @@ These are the reasons this repo exists. The system it replaced broke every one o
 
 - Put a token, key or password in the repo, a commit message, a log, an issue or a doc. Names of
   variables are fine; values never are. `.env` stays `chmod 600` and gitignored.
-- Type credentials into a page through `act`, `task` or `computer` on the user's behalf.
-- Point the box at private, internal or loopback addresses, or try to get around a refusal.
+- Try to get around a refusal instead of reporting it.
+
+Allowed since Justin's decision of 2026-10-19 (`fleet/DECISIONS.md`, "guardrails, not rules"): typing
+credentials into a login page from the user's secret store (never from chat, and never logged), and
+private or internal addresses when the operator configures them on purpose. The box's URL checks still
+refuse private addresses by default until that setting is built (invariant 4).
 - Touch a Browser Use profile. The box never creates, opens, reads or deletes one, and never starts a
-  browser with a `profileId`: the account also holds other tools' logged-in profiles, and
+  browser with a `profileId`: the account also holds other tools' logged-in profiles (for example a lead-gen tool), and
   fresh, clean browsers are all this box offers. Logged-in work belongs to a tool built for it.
 - Report a check as passing that was not run, or a partial result as complete.
 
