@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY gateway ./gateway
 
-# No browser here on purpose: the gateway speaks REST to Steel and nothing else.
+# No browser here on purpose: the browsers are hosted (Browser Use Cloud, Browserbase).
 # /lane is a shared volume. Docker seeds a new volume from the image directory, so the
 # ownership has to exist here or the unprivileged user cannot take the lock.
 RUN useradd --create-home --shell /usr/sbin/nologin box \

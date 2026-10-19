@@ -1,0 +1,8 @@
+# Root-anchored so cmd/<binary>/ source stays tracked.
+/browser-box-pp-cli
+/browser-box-pp-cli.exe
+/browser-box-pp-mcp
+/browser-box-pp-mcp.exe
+/bin/
+/build/
+/dist/

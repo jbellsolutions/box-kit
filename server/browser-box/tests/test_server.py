@@ -42,13 +42,14 @@ class Door(unittest.TestCase):
         response = self.client.post("/mcp", json=rpc("tools/list"), headers={**MCP_HEADERS, "Authorization": "Bearer nope"})
         self.assertEqual(response.status_code, 401)
 
-    def test_tools_list_is_the_four_documented_tools(self):
+    def test_tools_list_is_what_this_box_can_do(self):
         response = self.client.post(
             "/mcp", json=rpc("tools/list"), headers={**MCP_HEADERS, "Authorization": f"Bearer {TOKEN}"}
         )
         self.assertEqual(response.status_code, 200)
         listed = [t["name"] for t in response.json()["result"]["tools"]]
-        self.assertEqual(listed, ["fetch", "read", "session", "status"])
+        # tests/__init__ clears every engine key: with no hosted browser, only fetch and status can work.
+        self.assertEqual(listed, ["fetch", "status"])
 
     def test_bare_mcp_path_is_served_without_a_redirect(self):
         """Clients are configured with .../mcp; a 307 on a streaming POST is a coin flip."""

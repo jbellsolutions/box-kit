@@ -1,20 +1,37 @@
 # browser-box
 
-One browser, one door.
+One door to hosted browsers.
 
-A self-hosted browser on your own VPS, behind a single MCP endpoint. Your agent — Claude,
-or anything else that speaks MCP — is the brain. This box is the hands. Two models can run
-here, both opt-in: Jev, behind `act`, picks page elements and cannot write a word; Browser-Use,
-behind `task(surface="browser")`, is an LLM step loop for when you would rather hand over a
-whole goal than plan its steps. Neither decides what you are trying to do.
+A gateway on your own VPS, behind a single MCP endpoint, that hands your agent a hosted browser
+when it needs one. Your agent (Claude, or anything else that speaks MCP) is the brain. This box is
+the hands. **The host runs no browser:** the browsers are Browser Use Cloud's, one per call, many
+at once. Two models can run here, both opt-in: Jev, behind `act`, picks page elements and cannot
+write a word; Browser-Use, behind `task(surface="browser")`, is an LLM step loop for when you would
+rather hand over a whole goal than plan its steps. Neither decides what you are trying to do.
 
 ```
-  your agent ──MCP over HTTPS──► gateway ──REST──────────────────────► Steel ──► the only Chromium
-                (bearer token)      │ └─ guard ──CDP (every request)──────┤
-                                    ├─ act ──► agent-jev ──CDP───────────┤  (Jev: which element?)
-                                    ├─ task(browser) ──► agent-browseruse ┘  (an LLM plans each step)
-                                    └─ computer / task(computer) ──► Orgo (desktops, off-box)
+  your agent ──MCP over HTTPS──► gateway ──► Browser Use Cloud ──► a hosted Chromium per call (CDP)
+                (bearer token)      │ ├─ act ──► Jev (TypeSafe): which element? The gateway does the step
+                                    │ ├─ task(browser) ──► agent-browseruse ──► a hosted Chromium of its own
+                                    │ ├─ read, act, task fall back ──► Browserbase (emergency lane only)
+                                    │ ├─ fetch ──► plain HTTP GET from this host
+                                    │ └─ computer / task(computer) ──► Orgo (desktops, off-box)
 ```
+
+**Run your own:** a 1 vCPU / 2 GB VPS is enough, since no browser runs on the host. See
+[docs/operations.md](docs/operations.md).
+
+| Read next | |
+|---|---|
+| [CHARTER.md](CHARTER.md) | the rules every agent here follows |
+| [AGENTS.md](AGENTS.md) | using the box, and changing this repo |
+| [docs/choosing.md](docs/choosing.md) | which tool, and what each emergency does |
+| [docs/tools.md](docs/tools.md) | every tool, its arguments and answers; the MCP and HTTP/JSON doors |
+| [docs/architecture.md](docs/architecture.md) | how a call flows through the box |
+| [docs/operations.md](docs/operations.md) | deploy, update, rotate, troubleshoot |
+| [docs/security.md](docs/security.md) | the threat model and what is not covered |
+| [docs/integrations.md](docs/integrations.md) | Claude Code, the plugin, Hermes, the two command lines |
+| [docs/benchmark.md](docs/benchmark.md) | act vs task, measured |
 
 ## Why this exists
 
@@ -28,55 +45,71 @@ is the failure this repo is shaped to avoid:
   reports. The one step-planning model here, Browser-Use behind `task`, is opt-in and says so.
 - **Few tools.** Each new capability adds one tool, or one surface of one, and only after it is proven end to end.
 
-## Steel vs Browser-Use vs Browserless vs Browserbase
+## Where the browsers come from
 
-They are not four of the same thing. They are **two layers**, and only one of them is a browser.
+This box used to run a browser itself (Steel, a self-hosted Chromium) and was built around that
+browser's limit of one session per server. That was Steel's limit,
+not requirements, so Steel was replaced rather than obeyed.
 
-| | What it actually is | Self-host? | License | Here |
-|---|---|---|---|---|
-| **Steel** | Browser **infrastructure** — sessions, CDP, profiles, cookies, proxy, live view | Yes, Docker | Apache-2.0 | **This is the browser.** |
-| **Browserless** | Browser infrastructure — CDP + REST | Yes, Docker | **SSPL-1.0** or commercial | Skipped. Same job as Steel; SSPL §13 triggers when you offer the functionality to third parties as a service. |
-| **Browser-Use** | An **LLM agent** that drives a browser. Needs a browser | Yes, pip | MIT | `task(surface="browser")`, on Steel's Chromium |
-| **Browserbase** | SaaS browser infrastructure | **No self-hostable server exists** | — | Cloud only. Their open source is Stagehand. |
-| **Stagehand** | Browserbase's **agent/SDK** (`act`/`extract`/`observe`), runs against a local browser | Yes, npm/pip | MIT | Deferred: its `act` overlaps Jev's. It gets a slot only if the act-vs-task benchmark shows a need. This is what "self-hosted Browserbase" means |
+| | What it is | Role here |
+|---|---|---|
+| **Browser Use Cloud** | Hosted Chromium at $0.02 per browser-hour, billed by the minute; many browsers at once, up to the plan's `concurrentSessionLimit` | **The only main lane.** `read`, `session`, `act` and `task` all run on its browsers |
+| **Browserbase** | Hosted Chromium, billed in plan hours | **Emergency lane only.** `read`, `act` (any session) and `task` fall back to it when Browser Use cannot open a browser. See [what happens in each emergency](docs/choosing.md#browserbase-the-emergency-lane) |
+| **Browser-Use** (the library) | An LLM agent that drives a browser. Needs a browser | `task(surface="browser")`, in the `agent-browseruse` container, driving a hosted browser the gateway opens for each task |
+| **Orgo** | Full cloud desktops | `computer` and `task(surface="computer")`, off-box |
 
-**Running four Chromiums buys nothing.** Browser-Use and Stagehand are two steering wheels;
-they both need one engine. One browser plus two agent front-ends gives the same capability
-at a quarter of the RAM — and lets you A/B the two agents against the *same* browser, which
-is the only fair comparison you can make.
+Browser Use Cloud (a service that supplies browsers) and Browser-Use (a library that plans steps
+inside one) share a name and are different things.
 
-Hyperbrowser and Browserbase stay cloud, called by API when a job needs their fleet or their
-stealth. There is nothing to self-host there.
+## Start with no subscription
+
+Nothing here needs a monthly plan. The smallest working box is one key:
+
+| Key | What it costs to start | What it turns on |
+|---|---|---|
+| `BROWSER_USE_API_KEY` (cloud.browser-use.com) | **Pay as you go, no subscription.** $1 of free credit on sign-up with Google, GitHub or Microsoft, no card; then $0.02 per browser-hour, top-ups from $5, credits never expire; 10 browsers at once before any payment | `read`, `session`, `fetch`, `status` |
+| `BROWSERBASE_API_KEY` (optional) | **The $0 Free plan** is enough for the emergency lane: 1 browser-hour a month, 3 at once, 15-minute sessions, no CAPTCHA solving or proxies on that plan | Browserbase behind `read`, `act` and `task` when Browser Use cannot open a browser. Set `BB_BROWSERBASE_MONTHLY_HOURS=1` and `BB_BROWSERBASE_MAX_CONCURRENT=3` to match |
+| `TYPESAFE_API_KEY` (optional) | Pay per use, about $0.042 per million input tokens; TypeSafe has been invite-first | `act` (with the Browser Use key) |
+| `OPENROUTER_API_KEY` (optional) | Pay as you go | `task(surface="browser")`, with the agent-browseruse container |
+| `ORGO_API_KEY` (optional) | Orgo's own pricing | `computer`, `task(surface="computer")` |
+
+Prices are the providers' published ones as of 2026-10-19; check their pages before relying on
+them. Plus the host: any small VPS, since no browser runs on it (this box is a $12 droplet).
 
 ## The tools
 
 | Tool | Does | Backed by | Costs |
 |---|---|---|---|
-| `fetch` | plain HTTP GET, no browser | gateway | free |
-| `read` | open a URL, return text + links + screenshot | Steel | free (own hardware) |
-| `session` | create / list / release a persistent logged-in session | Steel | free |
-| `act` | drive the browser in plain-words steps: open, click, type, scroll; asks when unsure, confirms anything risky | Jev → Steel | TypeSafe decisions |
+| `fetch` | plain HTTP GET from this host, no browser | gateway | free |
+| `read` | open a URL, return text + links + screenshot | Browser Use Cloud; Browserbase as the emergency lane | ~$0.0003 a read |
+| `session` | a fresh, logged-out browser that stays open between calls: create / list / release | Browser Use Cloud | browser time while its browser is open |
+| `act` | drive the browser in plain-words steps: open, click, type, scroll; asks when unsure, confirms anything risky | Jev + Browser Use Cloud | TypeSafe decisions + browser time |
 | `computer` | drive an Orgo cloud desktop: screenshot, click, type, key, scroll, bash, start, stop | Orgo (off-box) | Orgo, per hour |
-| `task` | hand a whole goal to an agent: Browser-Use in this box's browser, or Orgo's computer-use agent on a desktop | Browser-Use → Steel; Orgo (off-box) | model tokens, reported per task; Orgo + model |
+| `task` | hand a whole goal to an agent: Browser-Use on a hosted browser, or Orgo's computer-use agent on a desktop | Browser-Use + Browser Use Cloud; Orgo (off-box) | model tokens, reported per task, plus browser time; Orgo + model |
 | `status` | what is up, what is healthy, what recent calls cost | gateway | free |
 
-`act` is listed **only when Jev is configured** (`BB_JEV_URL` + `BB_JEV_TOKEN`), `computer`
-**only when `ORGO_API_KEY` is set**, and `task` only when at least one of its surfaces is:
-`browser` needs agent-browseruse (`BB_BROWSERUSE_URL` + `BB_BROWSERUSE_TOKEN`), `computer`
-needs Orgo. Its card and its `surface` choices list only the surfaces this box has. A box
-without Orgo has no computers, and advertising them would be the lie this repo exists to stop. Screenshots — from
-`read` and `computer` — come back as real MCP image blocks, so a vision-capable caller can
-actually see them rather than receiving base64 as text.
+A tool is listed only when what it needs is configured:
+
+- `read` needs `BROWSER_USE_API_KEY` or `BROWSERBASE_API_KEY`.
+- `session` needs `BROWSER_USE_API_KEY`.
+- `act` needs `BROWSER_USE_API_KEY` and `TYPESAFE_API_KEY`, both.
+- `computer` needs `ORGO_API_KEY`.
+- `task` needs at least one surface. `browser` needs `BROWSER_USE_API_KEY` plus agent-browseruse
+  (`BB_BROWSERUSE_URL` + `BB_BROWSERUSE_TOKEN`); `computer` needs Orgo. Its card and its `surface`
+  choices list only the surfaces this box has.
+
+A box without Orgo has no computers, and advertising them would be the lie this repo exists to
+stop. Screenshots (from `read` and `computer`) come back as real MCP image blocks, so a
+vision-capable caller can actually see them rather than receiving base64 as text.
 
 ### act vs task: measured, and which to use
 
 Five jobs, each run 3 times through `act` (the caller plans the steps, Jev grounds each one) and
-through `task(surface="browser")` (Browser-Use with `z-ai/glm-5.3-flash` plans them), in the same
-Steel browser on a Mac (2026-09-23; Jev `edcbbae`; raw rows in
-[`bench/results-2026-09-23.json`](bench/results-2026-09-23.json); rerun with
-`.venv/bin/python scripts/bench.py 3`). Success is checked against ground truth fetched
-separately (the Wikipedia search API, the quotes pages, the live form and to-do DOM), never
-against the agent's own claim.
+through `task(surface="browser")` (Browser-Use with `z-ai/glm-5.3-flash` plans them). **These were
+measured on the retired Steel engine**, in one local browser on a Mac (2026-09-23; Jev `edcbbae`;
+raw rows in [`bench/results-2026-09-23.json`](bench/results-2026-09-23.json)). Success is checked
+against ground truth fetched separately (the Wikipedia search API, the quotes pages, the live form
+and to-do DOM), never against the agent's own claim. They have not been rerun on hosted browsers.
 
 | job | via | success | median s | caller turns | agent steps | model cost (median) | Steel peak |
 |---|---|---|---|---|---|---|---|
@@ -115,7 +148,8 @@ How to read it:
   - Quoted text was typed lowercase ("test user").
   - Unlabelled row checkboxes were one deduplicated element.
   - Custom-drawn (opacity 0) checkboxes were not listed at all.
-- Steel peaked at 1.36 GiB during a task. The cap is now 1.5 GiB.
+- The "Steel peak" column is that browser's memory during the run. It stays because the rows are
+  the record; no browser runs on this host now.
 
 ### Jev, and why it is inside
 
@@ -125,77 +159,62 @@ milliseconds. It never generates text, so it cannot plan, write a search query o
 goal is done — **your agent still does all of that**. What Jev replaces is the 2–10 s of LLM
 time a browser agent spends per step just finding the button.
 
-- **One browser.** `agent-jev` has no Chromium. It attaches to Steel's over CDP and works in
-  its own tab, so a `read` in between does not disturb it. Measured: 134 MiB for the container,
-  and `ps` finds Chromium only inside `steel`.
+- **The gateway does the step.** There is no Jev container. The gateway lists the page's
+  interactive elements over CDP, sends them to TypeSafe's decision API in one request per step,
+  and clicks or types the element Jev picked (`gateway/gateway/stepper.py`, `decide.py`). It needs
+  `TYPESAFE_API_KEY`; `BB_DECISION_URL` and `BB_DECISION_MODEL` point it at another server that
+  speaks the same API.
 - **It asks rather than guesses.** A low-confidence step comes back as
   `needs_clarification` with options; answer with `act(pick=…)`. Anything that looks hard to
   undo (buy, delete, send, post) comes back as `needs_confirmation`; nothing risky runs
-  unconfirmed.
-- **No second brain.** The container gets no model key, and the gateway never calls Jev's
-  `/ask`. It decides elements, nothing more.
-- **Creating or releasing a `session` restarts Steel's Chromium.** Jev reattaches on its
-  next step, but its tab starts again at `about:blank`.
-- **Measured through `act` on real pages** (Hacker News, python.org, Wikipedia, example.com):
-  Jev's decision itself took 209–424 ms (median ~300 ms, n=20; one 8.8 s outlier). A whole
-  click step, gateway to page settled, took 1.2–2.5 s, and up to ~11 s when the page itself
-  was slow. Page load and settling dominate, not the decision. `act` reports each step's
-  `decided_by` and `decision_ms` so this stays checkable. The benchmark against Browser-Use is B5.
+  unconfirmed. Risk is judged twice, once from your words and once from the element Jev picked.
+- **No second brain.** The decision model never writes text; code decides what is typed.
+- **Measured 2026-10-12** on 30 element questions over real pages: Jev 30/30 at ~176 ms;
+  Cloudflare's Clef, which takes the same request body, 28/30 at ~518 ms. Page loads, not the
+  decision, dominate a step's time.
+- **Where it works.** `act` works in the browser of the `session_id` you give it, so it can take a
+  page step by step and each agent can have its own. Without one it uses one shared scratch browser,
+  forgotten when it closes. Every browser is fresh and logged out; this box keeps no logins
+  ([choosing.md](docs/choosing.md)).
 
-Enable it (it is a compose profile, off by default):
+### Browser-Use, and how it gets a browser
 
-```bash
-# in .env — see .env.example for each line
-COMPOSE_PROFILES=jev
-BB_JEV_URL=http://agent-jev:3111
-BB_JEV_TOKEN=$(openssl rand -hex 24)
-TYPESAFE_API_KEY=...          # without it Jev falls back to keyword heuristics, and status says so
-JEV_DIR=../jev-automation     # a checkout of jev-automation
-JEV_REF=<commit>              # the exact commit `make jev-image` builds, via git archive
-make up                       # builds agent-jev first, then the stack
-```
+`task(surface="browser")` hands a whole goal to Browser-Use (0.13.10, pinned), an LLM step loop.
+The gateway opens a hosted browser for the task and passes its CDP address to `agent-browseruse`,
+which drives it. The step model is `z-ai/glm-5.3-flash` on OpenRouter (`BB_BROWSERUSE_MODEL`),
+text only (`use_vision` off). Browser-Use's end-of-run "judge" model call is off too: it costs a
+call per task and judges what the answer already reports.
 
-`make jev-image` builds from the commit in git, never from that checkout's working files, so
-uncommitted work there cannot leak into the box.
-
-### Browser-Use, and how it shares the one browser
-
-`task(surface="browser")` hands a whole goal to Browser-Use (0.13.10, pinned), an LLM step loop
-that drives Steel's Chromium over CDP. The step model is `z-ai/glm-5.3-flash` on OpenRouter
-(`BB_BROWSERUSE_MODEL`), text only (`use_vision` off). Browser-Use's end-of-run "judge" model
-call is off too: it costs a call per task and judges what the answer already reports.
-
-- **One browser.** `agent-browseruse` has no Chromium. Each task runs in a child process of its
-  own, killed outright at `timeout_seconds` or on cancel. The container idles at 38 MiB and
-  peaked at 327 MiB during a task (measured).
-- **It stays in its own tab.** Browser-Use assumes the browser is its own. On connect it took
-  over the first tab it found, which was `act`'s (verified: `act`'s next step landed on Hacker
-  News). Now every tab that exists when a task starts is invisible to it, and it cannot open a
-  CDP session on one, so it cannot navigate, switch to or close them. Its downloads watchdog,
-  which would switch the whole browser to downloading into a temp directory, is disabled.
-  So is its browser-wide permission grant. The container closes the task's tabs when it ends,
-  never someone else's and never the last one. These patches are written against 0.13.10
-  only: a self-check at startup fails, and status reports it, if the version or any patched
-  method changes. `make smoke` runs `act`, then a task, then `act` again, and fails if the
-  task moved `act`'s tab.
-- **It holds the browser lane for the whole task** and needs the in-browser guard. If the
-  guard detaches mid-task, the task is stopped (status `stopped`) rather than left browsing
-  unguarded.
+- **A browser per task, several tasks at once.** Each task runs in a child process of its own,
+  killed outright at `timeout_seconds` or on cancel, against a hosted browser that is stopped when
+  the task ends. Tasks run side by side up to the plan's browser ceiling. `BB_BROWSERUSE_PARALLEL` defaults to 0, which means no cap of
+  ours; the agent container's memory (`BROWSERUSE_MEMORY`, default 1200m) is the real bound, at about
+  100-300 MB per running task. A `task` takes no `session_id`: it always opens a browser of its own.
+- **No browser in the container.** `agent-browseruse` idled at 38 MiB and peaked at 327 MiB during
+  a task (measured, one task at a time).
+- **Its tab confinement remains.** `agents/browseruse/runner.py` still keeps each task to the tab
+  opened for it: tabs that existed first are invisible to it, it cannot open a CDP session on or
+  close one, and its downloads watchdog and browser-wide permission grant are disabled. These
+  patches are written against 0.13.10 only: a self-check at startup fails, and status reports it,
+  if the version or any patched method changes.
 - **It keeps running if you stop waiting.** The endpoint is stateless, so an MCP client's
   cancel notification can never reach the call it cancels (each POST is its own server
-  instance). A task therefore runs to its `timeout_seconds`, holding the browser, unless
-  someone calls `task(cancel=true)`. That answers once the agent is dead and its tabs are
-  closed, and the stopped task still reports its steps and cost. A `read` or `act` that finds
-  the lane held by a task says so. A gateway that restarts stops any task left running by the
-  one before it, since that task's lane died with the old process.
-- **What it costs, measured**:
+  instance). A task therefore runs to its `timeout_seconds` unless someone calls
+  `task(cancel=true)`. That stops every running browser task and its hosted browser, and each
+  stopped task still reports its steps and cost. Browsers left running by a gateway crash are
+  stopped when the gateway next starts.
+- **When Browser Use cannot open a browser,** the task runs on Browserbase and says so
+  (`engine: "browserbase"`, `fallback_reason`).
+- **What it costs, measured** (before the move to hosted browsers; the model cost does not depend
+  on the browser, the seconds may):
   - example.com, report the heading: 2 steps, 9.7 s, $0.0011.
   - Hacker News top story and its points: 2 steps, 13.3 s, $0.0021.
   - Hacker News top story's comment count, from its comments page: 3 steps, 31.4 s, $0.0056.
   - Hacker News first top-level comment: 3 steps, 24.8 s, $0.0053.
+
   Cost is the model's tokens at OpenRouter's list price, as an upper bound because
   prompt-cache discounts are not applied. It comes back per task, and `status` adds up the
-  recent ones. Compared against `act` in the benchmark (B5).
+  recent ones. Browser time is billed by Browser Use on top.
 - **Telemetry is off** (`ANONYMIZED_TELEMETRY=false`, cloud sync off). The only outside
   service it calls is OpenRouter.
 
@@ -203,7 +222,8 @@ Enable it (a compose profile, off by default):
 
 ```bash
 # in .env — see .env.example for each line
-COMPOSE_PROFILES=jev,browseruse
+COMPOSE_PROFILES=browseruse
+BROWSER_USE_API_KEY=...
 BB_BROWSERUSE_URL=http://agent-browseruse:3120
 BB_BROWSERUSE_TOKEN=$(openssl rand -hex 24)
 OPENROUTER_API_KEY=...
@@ -212,9 +232,9 @@ make up
 
 ### Orgo, and why it is off-box
 
-A self-hosted X/VNC desktop would need ~1.5 GB and real CPU on a box whose browser already
-sits near 900 MB. Orgo gives full desktops elsewhere, so they cost this box nothing and never
-contend for the browser lane. Three things from Orgo's own API docs shape the integration:
+A self-hosted X/VNC desktop would need ~1.5 GB and real CPU on a small VPS. Orgo gives full
+desktops elsewhere, so they cost this box nothing. Three things from Orgo's own API docs shape
+the integration:
 
 - **Its computer-use endpoint accepts exactly five model ids** and returns `400 invalid_model`
   for anything else — including `claude-sonnet-4-6` with a hyphen (Orgo spells it `4.6`). That
@@ -228,150 +248,91 @@ contend for the browser lane. Three things from Orgo's own API docs shape the in
 There is no provider catalog, no readiness walkthrough, no plan/verify/resume, and no doctor
 variants. That surface is what made the last one unusable.
 
-## One job at a time
+## Concurrency
 
-The gateway holds a cross-process `flock` and every browser call takes it. This is not
-caution for its own sake — it is a bug already paid for. Concurrent Browser-Use runs on a
-single local Chromium produced *"attached to a different loop"*, *"Root CDP client not
-initialized"*, a dead CDP websocket and a 30s browser-start stall. A second caller waits
-up to `BB_LANE_WAIT_SECONDS` and is then told the lane is busy, in words the model can act
-on. It is never queued silently forever. `task(surface="browser")` holds the lane for its whole
-run, since its agent is driving the browser the entire time.
+Browsers do not share a lane. Every `read`, every `act` scratch browser and every `task` gets a
+hosted browser of its own, and they run side by side up to the plan's `concurrentSessionLimit`
+(read from the account, never more than `BB_BROWSERUSE_MAX_CONCURRENT`; that is the plan's limit,
+not a lock of ours). The one rule that remains per browser: **a session runs one browser at a
+time**, because two callers driving one page at once would trample each other. Calls on one
+`session_id` wait for each other up to `BB_SESSION_WAIT_SECONDS` (default 30) and then answer
+"busy"; different sessions run in parallel.
+
+The cross-process `flock` in `gateway/gateway/lock.py` now guards only Orgo computers: one driver
+per desktop. A second caller waits up to `BB_LANE_WAIT_SECONDS` and is then told that computer is
+busy.
 
 ## Security
 
-The box sits next to your other services, so a page must never be able to reach them.
-**This is not theoretical here.** On 2026-09-22, before the guard below existed, a public
-URL that 302-redirected to `http://127.0.0.1:3000/v1/sessions` made the browser read
-Steel's *own* session list and hand it back as page content. That exploit is in the test
-suite now.
+The box sits next to your other services (the gateway, Caddy, anything else on the host), so a page
+must never be able to reach them. This was real: on 2026-09-22, when the browser ran on this host,
+a public URL that 302-redirected to `http://127.0.0.1:3000/v1/sessions` made the browser read its
+own session list and hand it back as page content. The redirect exploit is in the test suite still.
 
-What the code does:
+**What changed.** The browsers now run on Browser Use's and Browserbase's networks, not on this
+host. A page loaded in one cannot reach this host's loopback, its compose network or its cloud
+metadata address. It reaches this host only the way any internet client does, through its public
+ports, where the MCP endpoint is bearer-gated.
+So the host-egress `iptables` rules and the in-browser request guard, which existed to stop a
+browser on this host from being steered into the host's other services, are gone, and nothing
+replaces them because that route no longer exists. SSRF against this host is closed by where the
+browsers live, not by a rule we maintain.
 
-- **Every URL is validated and classified before any connection is made.** Only `public_web` passes.
+What the code still does:
+
+- **Every URL is validated and classified before any browser opens or connection is made**
+  (`safe_target`). Only a public scheme and host pass, and every address the host name resolves to
+  must be public too.
 - **Obfuscated loopback is handled.** Browsers accept `0x7f000001`, `2130706433`, `0177.0.0.1`
   and `127.1`; Python's `ip_address` rejects all four, so a naive check falls through to
   "public" and happily fetches localhost. See `gateway/gateway/security.py`.
 - **Every hostname is resolved and every address it answers with is checked.** A public name
   that A-records to `10.0.0.5` is refused. One public record does not launder a second one
   pointing at the metadata service.
-- **The redirect chain is walked by hand, one hop at a time, and cleared before each
-  connection.** Inspecting `response.history` afterwards is too late — the request to the
-  internal address already happened.
-- **The browser is handed the cleared final URL, not the one that was asked for.** Steel's
-  `metadata.urlSource` echoes the request, so the browser's own landing address is not
-  observable from the gateway. Pre-flighting the chain is the only control there is at this layer.
+- **`fetch` walks the redirect chain by hand, one hop at a time, and clears each hop before
+  connecting.** `fetch` is the one tool that makes an HTTP request from this host, so it is the
+  one where a redirect into an internal address would be a real exposure. Inspecting
+  `response.history` afterwards is too late: the request to the internal address already happened.
+- **A page that lands off the public web is dropped.** `read` (on either provider) drops one, and `act`
+  checks the page after each step: if it landed somewhere non-public, the tab goes to
+  `about:blank` and the step is reported as refused.
 - Cloud metadata (`169.254.169.254`) is link-local and blocked.
-- **Inside the browser, every request is checked where it actually happens.** A click, a browser
-  agent's own navigation, a redirect inside Steel's screenshot load, a popup and an iframe are
-  all invisible to the gateway's pre-flight. So the gateway also runs a **guard**
-  (`gateway/gateway/guard.py`): one CDP client that switches request interception on for the
-  **whole browser at once** (`Fetch.enable` on the browser target). Every request in every tab,
-  frame and dedicated worker, redirect hops included, is paused and checked with the same
-  classifier as everything else here, from the moment the guard connects. Service and shared
-  workers run as targets of their own, which the browser-wide interceptor does not see, so the
-  guard also auto-attaches to those two kinds, holds each before its first line runs, and
-  intercepts it on its own session.
-  - Two designs were tried first and leaked. Playwright's `route()` let redirect hops straight
-    through. Per-tab interception (attach to each new tab, then intercept it) missed a tab
-    created with its URL already given: `Target.createTarget` starts that request before any
-    client can intercept the tab, and a redirect rides the request already in flight. A public
-    URL that 302s to `127.0.0.1:3000` loaded Steel's session list past it every time (5/5,
-    verified 2026-09-23). Any CDP client in the box can create such a tab, Browser-Use included.
-  - `make guard-check` runs 18 attacks against the live browser with nothing but this guard
-    between them and Steel's API. It refused all 18: the redirect exploit, a metadata redirect,
-    direct and obfuscated loopback, a compose service name, a page `fetch()`, a worker's
-    fetch, a popup that redirects inward, the exploit after a 1.5 MB request, and after a
-    browser relaunch. With no guard at all, the 7 navigation cases get through: Chromium's own
-    Local Network Access check covers subresources and WebSockets, **not navigation**.
-  - `make smoke` aims Steel's own `/v1/screenshot` straight at the redirect, bypassing the
-    gateway entirely; the guard refuses it inside the browser.
-  - Its cost is small next to the noise but not zero: warm loads of two news front pages
-    (120–195 requests) took 2.6 s and 2.5–3.6 s with it on, 3.7 s and 1.7–2.4 s with it off.
-    The first load of a new host also waits for the guard's own DNS check (cached for 60 s).
-  - Jev's executor keeps its own per-page guard on top (a TypeScript port of the same
-    classifier, run against the same 33 vectors in `tests/scope_vectors.json`), so `act` has
-    two independent layers.
-- **The guard fails open, so the tools fail closed.** When its connection drops, Chrome
-  releases everything it was holding (verified). So `act` waits for it and refuses without it,
-  `read` withholds its screenshot, `session` holds the browser lane after a relaunch until the
-  guard is back on the new browser, and `status` reports the guard as its own component.
-- Steel's recorder extension posts session events from its service worker to Steel's own API.
-  The guard refuses those like any other request inward (this box does not run Steel's replay
-  viewer) and counts posts to that endpoint apart in `status`, so they cannot bury real refusals.
 - Nothing is published beyond `127.0.0.1`. Caddy terminates TLS and is the only public surface.
-- **CDP especially stays on loopback** — an exposed CDP port is a remote shell into the browser.
 - The gateway refuses to start without `BB_TOKEN`. An open browser endpoint is not a degraded
   mode; it is a breach.
 - `/health` is unauthenticated liveness only and never reports what is configured or up.
 
-### What this does NOT cover, and what to do about it
-
-Be clear-eyed: the gateway can only vet what it sees. Once Steel has a URL, **Chromium does
-its own DNS and its own connecting**, and the gateway has no say.
+### What this does NOT cover
 
 1. **DNS rebinding.** A name that resolves public at check time can resolve private a second
-   later. The pre-flight cannot close this.
-2. **A server that answers our pre-flight differently from the browser.** `read` sends a HEAD
-   with the same user agent, but a target that redirects only for real Chromium defeats it.
-   If the pre-flight fails outright, `read` proceeds with the URL as written (already
-   validated) rather than failing every site that refuses non-browser clients.
-3. **Steel reaching its own loopback.** No network policy can stop a container talking to
-   itself, which is why Steel holds nothing worth stealing and why the token in front matters.
-4. **`read(screenshot=true)` is a second navigation the pre-flight never sees.** Before the
-   guard existed, it photographed Steel's own API through a redirect. The guard now refuses
-   that inside the browser, and `read` withholds the screenshot whenever the guard is not
-   attached.
-5. **Service workers** have their own network path. The guard intercepts them on their own
-   sessions (it refuses Steel's recorder worker's posts this way), but a page-registered service
-   worker's fetch into a private address has not been tested. Chromium's Local Network Access
-   applies too; the egress rule is the backstop.
-6. **The guard is one process.** A crash or a Steel restart leaves a window before it
-   reattaches. The tools refuse to navigate in that window, and a browser task is stopped when
-   the guard goes, but anything already loading at that moment is unguarded until it is back.
-7. **Browser-Use reads untrusted pages and acts on them.** A page can instruct it, and it may
+   later. For `fetch` this is real: the gateway resolves the name to check it, and the HTTP client
+   resolves it again to connect. For the hosted browsers a rebound answer points into the
+   provider's network, not this host.
+2. **The hosted browsers' own DNS and connecting.** The gateway checks the URL it hands over and,
+   in `read` and `act`, where the page landed; it does not see requests a page makes after
+   that. Those happen on the provider's machines.
+3. **This box keeps no logins and never touches a Browser Use profile.** `cloud.py` refuses any API
+   path containing "profile" before making the request, and no browser is created with a
+   `profileId`: the Browser Use account also holds other tools' logged-in profiles, and
+   touching one would be a serious incident. `live_url` lets whoever holds it drive that session's
+   browser, so keep it to yourself. Crash cleanup stops only browsers this box created, by the ids
+   it recorded (`BB_OWNED_BROWSERS`); it never searches the account.
+4. **Browser-Use reads untrusted pages and acts on them.** A page can instruct it, and it may
    follow the instructions: go elsewhere on the public web, type what the page asks, click what
-   the page wants clicked. The guard keeps it off private addresses. `upload_file` is excluded,
+   the page wants clicked. The hosted browser keeps it off this host. `upload_file` is excluded,
    so it cannot post this container's files. Its process holds one secret, the OpenRouter
-   key, and no tool of its reads the environment. It cannot reach `act`'s tab. But its tab
-   shares the browser's cookies, so **after a `session` login, a task can act as that login**.
-   Hand it goals on logged-in sites only when you would let a web page steer that account.
-
-Not a security gap, but a limit to know: under Steel, only the first dedicated Web Worker of a
-CDP connection gets network; later workers' fetches hang, with or without any guard (verified
-with a bare Playwright client). A page that does its data loading in workers may never finish
-loading, whichever tool drives it.
-
-**The real control is network-level, and it belongs on the host.** Deny the browser
-everything private except the gateway:
-
-```bash
-STEEL_NET=$(docker network inspect browser-box_box -f '{{(index .IPAM.Config 0).Subnet}}')
-for range in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 127.0.0.0/8; do
-  sudo iptables -I DOCKER-USER -s "$STEEL_NET" -d "$range" -j DROP
-done
-# ORDER MATTERS: -I prepends, so this ACCEPT must go in LAST to sit ABOVE the DROPs.
-# Reorder these two blocks and the stack silently loses steel <-> gateway.
-sudo iptables -I DOCKER-USER 1 -s "$STEEL_NET" -d "$STEEL_NET" -j ACCEPT
-sudo iptables -L DOCKER-USER -n --line-numbers | head    # ACCEPT must be line 1
-# DOCKER-USER only sees traffic passing THROUGH the host. A container connecting to the host
-# itself (its bridge, VPC or public address) goes through INPUT: without this line the browser
-# reached the droplet's sshd (verified on the droplet, 2026-09-23). NEW only, so replies on
-# connections the host opened (published ports) still flow.
-sudo iptables -I INPUT 1 -s "$STEEL_NET" -m conntrack --ctstate NEW -j DROP
-sudo apt-get install -y iptables-persistent && sudo netfilter-persistent save   # or the rules die on reboot
-```
-
-Run that on the droplet before pointing anything at it. Then check it from inside the browser's
-container: DigitalOcean's metadata address, the VPC and the host must all time out., and keep the guards in the gateway
-as well. Neither layer is sufficient alone.
+   key, and no tool of its reads the environment. A task takes no `session_id` and runs in a fresh,
+   logged-out browser, so a page that steers it has no login to act as.
+5. **Bot walls are not reliably bypassed.** CAPTCHA solving is on by default (`BB_SOLVE_CAPTCHAS=1`)
+   on both providers, but Browser Use's residential proxy is off (it is billed per GB), so a
+   challenge the provider cannot solve still comes back as a failed or blocked read.
 
 ## Run it
 
 ```bash
 cp .env.example .env
 make token          # paste the value into BB_TOKEN in .env
-chmod 600 .env
+chmod 600 .env      # then set BROWSER_USE_API_KEY, and the keys for what you want offered
 make up
 make status
 ```
@@ -382,43 +343,14 @@ Then prove it end to end:
 make smoke
 ```
 
-`make smoke` lists the tools, calls `status`, reads a real page through the MCP endpoint,
-and asserts that obfuscated loopback is refused. If it passes, the box works.
+`make smoke` lists the tools, calls `status`, reads a real page with a screenshot through the MCP
+endpoint, and asserts that obfuscated loopback and a public redirect into loopback are refused.
+When `act` is offered it opens a page and checks that a redirect into loopback is refused; when
+`task(surface="browser")` is offered it runs a one-page goal. If it passes, the box works.
 
-With Jev enabled, also run the attack from inside the box network:
-
-```bash
-make shield-check   # 18 cases, both guards on; relaunches Chromium twice, so not while work is running
-make guard-check    # the same 18 with Jev's guard off: the gateway's guard must refuse them alone
-```
-
-It drives Jev's executor against the running Steel: every private route a page or click can
-take (redirects, metadata, obfuscated loopback, compose names, fetch, workers, WebSockets,
-popups, reattach after a relaunch) must be refused, and ordinary browsing must still work.
-Some of those are stopped by Chromium's own Local Network Access check rather than by our
-code, the WebSocket to Steel's CDP port among them. So this must pass against the **exact
-pinned Steel image** on the droplet: a Steel update that ships a Chromium without that check
-fails here, not in production.
-
-Measured on a first run (2026-09-22, Apple Silicon, **linux/arm64** image — the amd64 droplet
-will be slower, and its Chromium will not be smaller):
-
-| | |
-|---|---|
-| `read https://news.ycombinator.com` | 2s wall, 6,712 chars of markdown, 50 links |
-| screenshot on the same call | 371 KB JPEG, one extra page load |
-| `fetch https://example.com` | sub-second, no browser touched |
-| steel container | 686 MB resident after a few pages, 895 MB after a dozen, against a 1.2 GB cap |
-| gateway container | 45 MB resident against a 256 MB cap |
-| agent-jev container | 134 MiB resident against a 384 MB cap, no browser of its own |
-| agent-browseruse container | 38 MiB idle, 327 MiB peak during a task, against a 640 MB cap |
-| steel during a task | 1.08 GiB of its 1.17 GiB cap: Hacker News with 646 comments open, `act`'s tab open beside it. The benchmark's form task peaked at 1.17 GiB, so the cap is now 1.5 GiB |
-
-Steel's own Chromium is what eats the memory, and it is the number to watch: it **climbs
-with use** — 686 MB after a handful of pages, 895 MB after a dozen — which is exactly how a
-2 GB box with no swap ends up OOM-killing a Chromium rather than failing loudly. `make
-restart-browser` resets it, and the cap in `compose.yml` is what turns a leak into a
-restart instead of a dead host.
+Measured on the read path (2026-10-12): Hacker News with a screenshot in 3.6 s; three different
+pages at once in 3.2 s. The gateway container is capped at 256 MB and `agent-browseruse` at 1200 MB (`BROWSERUSE_MEMORY`).
+There is no Chromium to size a host for.
 
 `make smoke` finishes by driving the endpoint with a real MCP client — `initialize`,
 `notifications/initialized`, session headers, SSE negotiation — because raw JSON-RPC over
@@ -426,10 +358,25 @@ curl skips all of that, and "it should work statelessly" is exactly the kind of 
 that produced the last system. Both `/mcp` and `/mcp/` are checked, and so is the refusal of
 a client with the wrong token.
 
-## Three ways to talk to it
+## Five ways to talk to it
 
-All three hit the same gateway, the same tools, the same token. There is no privileged
+All five hit the same gateway, the same tools, the same token. There is no privileged
 back door that can drift from what agents see.
+
+- **MCP** at `/mcp`, for agents (below).
+- **HTTP/JSON** at `/api/v1/<tool>`: one POST per tool, the arguments as the JSON body, a refusal
+  as HTTP 422 with the same `{"error": ...}` body; `GET /api/v1/status`, `GET /api/v1/tools`, and
+  the OpenAPI document at `/openapi.json` (no token). `make openapi` regenerates
+  `docs/openapi.json` from the tool cards, and a test fails if the committed copy drifts.
+  Details: [docs/tools.md](docs/tools.md).
+- **`bb`**, the Python command line, which can also chat through a model on your machine (below).
+- **`browser-box-pp-cli`**, a Go command line generated from the OpenAPI document with Printing
+  Press, in [pp-cli/](pp-cli/). Every call it makes is written to a local ledger, so it adds what
+  the box does not keep: `history` (the box remembers only its last 10 calls), `cache` and `find`
+  over every page it read, `queue read` for batches of reads, `alias` for session ids, and `drift`
+  for what changed on the box since you last looked. The ledger sees only calls made through this
+  CLI or its own MCP server. It also serves the same commands as an MCP server of its own.
+- **The plugin**, for Claude Code (below).
 
 ### 1. MCP — for Claude Code, Claude Desktop, or any agent
 
@@ -473,8 +420,8 @@ pipx install 'git+https://github.com/jbellsolutions/browser-box#subdirectory=cli
 ```bash
 bb status                                          # what is up, and why not
 bb fetch -t https://example.com                    # plain HTTP, free, instant
-bb read -t -s -o shot.jpg https://news.ycombinator.com  # real browser + screenshot to a file
-bb session create                                  # a logged-in profile to reuse
+bb read -t -s -o shot.jpg https://news.ycombinator.com  # hosted browser + screenshot to a file
+bb session create                                  # a fresh browser of your own, for act
 bb act "open news.ycombinator.com then click new"   # steps you planned, grounded by Jev
 bb task "report the top HN story's comment count"  # hand a whole goal to Browser-Use
 bb task --cancel                                   # stop a running task
@@ -520,9 +467,9 @@ Set `BROWSER_BOX_URL` and `BROWSER_BOX_TOKEN` in your environment first.
 
 ### Host setup
 
-Ubuntu 24.04, Docker Engine, 2 GB swap, UFW allowing only 22, 80 (the certificate challenge) and 443,
-`python3-venv` (for `make venv` and `make smoke`), Caddy on the host (not in compose, so a
-stack restart never drops TLS).
+Ubuntu 24.04, Docker Engine, UFW allowing only 22, 80 (the certificate challenge) and 443,
+`python3-venv` (for `make venv` and `make smoke`), Caddy on the host (not in compose, so a stack
+restart never drops TLS). There is no egress rule to apply: no browser runs on the host.
 
 **DigitalOcean expires root's password** on a droplet created without a DO-registered SSH key,
 and an expired password blocks every non-interactive login, even with a valid key ("Password
@@ -539,48 +486,53 @@ sudo sed "s|{\$BB_DOMAIN}|box.example.com|" Caddyfile | sudo tee /etc/caddy/Cadd
 sudo systemctl reload caddy
 ```
 
-**Size the box for a browser.** 2 vCPU / 4 GB. A 1 vCPU / 2 GB droplet is the configuration
-whose watchdogs blew and whose Chromium the kernel OOM-killed under exactly this workload —
-DOM extraction plus screenshots on one core. It will run; it will not be comfortable.
+**Sizing.** The live droplet is 2 vCPU / 4 GB, chosen when Chromium ran on it. The compose caps
+now total about 1.5 GB (gateway 256 MB, agent-browseruse 1200 MB), but a smaller droplet has not been
+tried here.
 
 ## Develop
 
 ```bash
 make venv     # once
-make test     # 167 tests, no Docker, no browser and no API key needed
+make test     # 238 tests, no Docker, no browser and no API key needed
 ```
 
-The tests cover the SSRF guards — all four obfuscated-loopback forms, inward DNS answers,
-the redirect-into-loopback exploit proven live, and the rule that the browser is handed the
-cleared final URL — plus the single-flight lane, the tool result shapes, and the fact that
-the gateway refuses to start unauthenticated and refuses to answer without a token. The CLI's
-`ask` loop is tested against a stub model, so the suite needs no key and spends nothing, and
-the plugin manifests are checked against the real tool list so a command cannot allow-list a
-tool that does not exist.
+The tests cover the SSRF checks — all four obfuscated-loopback forms, inward DNS answers, the
+redirect-into-loopback exploit — plus the Orgo lane, the tool result shapes, the emergency
+fallbacks, and the fact that the gateway refuses to start unauthenticated and refuses to answer
+without a token. The CLI's `ask` loop is tested against a stub model, so the suite needs no key and
+spends nothing, and the plugin manifests are checked against the real tool list so a command cannot
+allow-list a tool that does not exist.
 
 ## Layout
 
 ```
-compose.yml          steel + gateway (+ agent-jev, profile jev; agent-browseruse, profile browseruse),
-                     loopback-only, memory and CPU capped
+compose.yml          gateway (+ agent-browseruse, profile browseruse), loopback-only, memory and CPU
+                     capped. No browser runs on this host
 Caddyfile            TLS and the only public surface (install on the host)
 gateway/
   gateway/
     server.py        MCP over streamable HTTP, bearer-gated
-    tools.py         the tools and their cards
-    steel.py         REST client for the self-hosted browser
+    rest.py          the HTTP/JSON door and the OpenAPI document, built from the same tool cards
+    tools.py         the tools and their cards; safe_target and fetch's redirect walk
+    cloud.py         Browser Use Cloud: a hosted browser per call, spend and concurrency caps
+    sessions.py      fresh browsers kept open between calls, one open browser per session
+    stepper.py       act: lists the page's elements, asks Jev, does the step over CDP
+    decide.py        client for the decision model (TypeSafe's Jev by default)
+    browserbase.py   Browserbase, the emergency lane
+    cdp.py           a small CDP client
     orgo.py          Orgo cloud computers — every path and body from Orgo's own docs
-    jev.py           client for agent-jev, the model behind act
     browseruse.py    client for agent-browseruse, the agent behind task(surface="browser")
-    guard.py         the in-browser guard: one CDP client checking every request Chromium makes
-    lock.py          the single browser lane
+    lock.py          the lane lock, now used for Orgo computers only
     security.py      URL scope classification — port this, never rewrite it
 agents/browseruse/   Browser-Use in a container: server.py (no browser_use import; runs, times out, kills,
                      cleans up tabs) and runner.py (one task, confined to its own tab)
 cli/                 the `bb` command line (its own package, pipx-installable)
+pp-cli/              browser-box-pp-cli: the Go command line + MCP server generated from docs/openapi.json
+docs/                choosing, architecture, tools, operations, security, integrations, benchmark; openapi.json
+CHARTER.md AGENTS.md the rules for agents, and how to use and change this repo
 .claude-plugin/      plugin + marketplace manifests
 skills/ commands/    what the plugin teaches an agent
 scripts/smoke.sh     the end-to-end proof
-scripts/guard_probe.py  the in-flight redirect attack, run by smoke
-tests/               167 tests; scope_vectors.json is shared with jev-automation
+tests/               238 tests; scope_vectors.json holds the shared URL-scope vectors
 ```

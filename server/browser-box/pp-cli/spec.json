@@ -1,0 +1,641 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "browser-box",
+    "version": "1.0.0",
+    "description": "Hosted browsers (Browser Use Cloud, Browserbase as the fallback) behind one door. The same tools are served over MCP at /mcp. The calling agent is the brain; the box executes."
+  },
+  "servers": [
+    {
+      "url": "https://your-box.example.com"
+    }
+  ],
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "BB_TOKEN from the box's .env",
+        "x-auth-env-vars": [
+          "BROWSER_BOX_TOKEN"
+        ]
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/fetch": {
+      "post": {
+        "operationId": "fetch",
+        "summary": "Plain HTTP GET of a public URL, no browser",
+        "description": "Plain HTTP GET, no browser. Fastest and free. Use it FIRST for any page that is server-rendered HTML, JSON or plain text \u2014 news sites, docs, APIs, RSS.\nDo NOT use when: the page needs JavaScript to render, is behind a login, or blocks bots.\nReturns: text (HTML stripped to readable text), status_code, final_url.",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the part of the box it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its integration is not configured)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "Public http(s) URL",
+                    "example": "https://example.com"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/read": {
+      "post": {
+        "operationId": "read",
+        "summary": "Open a URL in the real browser and return its text, links and optionally a screenshot",
+        "description": "Open a URL in the real browser and return its rendered text, links and optionally a screenshot. Use when fetch returned nothing useful because the page renders with JavaScript.\nDo NOT use when: fetch already answered (this costs a browser slot), or the task needs clicking and typing rather than reading.\nEach read gets its own hosted browser (Browser Use Cloud, when status shows it), so reads run side by side up to the plan's limit; there is no queue on this host. If that browser fails or the site blocks it, engine=\"auto\" falls back to Browserbase when configured; the result's engine and fallback_reason say which ran and why. Reads are public and logged out: never for a page that needs a session.\nThe screenshot is of the same page load the text came from. Ask for it when the picture is the evidence.\nReturns: text, title, links, status_code, and screenshot_base64 (JPEG) when asked for.",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the part of the box it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its integration is not configured)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "Public http(s) URL",
+                    "example": "https://example.com"
+                  },
+                  "screenshot": {
+                    "type": "boolean",
+                    "description": "Also return a full-page JPEG of the page that was read.",
+                    "default": false
+                  },
+                  "delay_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 15000,
+                    "description": "Wait this long after load for late content."
+                  },
+                  "engine": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "browseruse",
+                      "browserbase"
+                    ],
+                    "default": "auto",
+                    "description": "auto: Browser Use Cloud, then Browserbase as the fallback when it is configured. browseruse: Browser Use only. browserbase: go straight to Browserbase (paid hours; public, logged-out pages only)."
+                  },
+                  "session_id": {
+                    "type": "string",
+                    "description": "Read signed in, in this saved session's browser (a tab of its own; act's tab is left where it was). Hosted engine only"
+                  },
+                  "region": {
+                    "type": "string",
+                    "enum": [
+                      "us-west-2",
+                      "us-east-1",
+                      "eu-central-1",
+                      "ap-southeast-1"
+                    ],
+                    "description": "Browserbase only: read the page from this region. Implies engine=browserbase."
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session": {
+      "post": {
+        "operationId": "session",
+        "summary": "Create, list or release a persistent browser session (logins survive between calls)",
+        "description": "Saved browser logins. A session is a browser profile: sign in to a site once, by hand, and every later act, read or task call given its session_id starts already signed in.\ncreate -> a new session, with its browser open: returns session_id and live_url. Open live_url, sign in to each site the session needs, then call release to save the logins.\nlogin  -> open an existing session's browser again for more sign-ins (returns live_url).\nlist   -> every session, the sites it holds logins for, and whether its browser is open.\nrelease -> close the session's browser and KEEP its logins. delete -> forget the session and its logins; that is the only reliable logout.\nA session runs one browser at a time: calls on the same session_id wait for each other; different sessions run side by side. An idle session's browser closes itself after a few minutes and costs nothing until it is used again. live_url lets whoever holds it drive that browser: share it only with the person signing in.\nDo NOT create a session for public pages: read and act without session_id use a fresh, logged-out browser.",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the part of the box it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its integration is not configured)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "login",
+                      "list",
+                      "release",
+                      "delete"
+                    ]
+                  },
+                  "session_id": {
+                    "type": "string",
+                    "description": "Required for login and delete; release without it closes act's scratch browser"
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "create only: a label, e.g. the account it holds"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/act": {
+      "post": {
+        "operationId": "act",
+        "summary": "Drive the browser in plain-words steps; Jev picks each element",
+        "description": "Drive the browser step by step in plain words: \"open https://\u2026\", \"click the Pricing link\", \"type 'running shoes' into the search box and press enter\", \"scroll down\", \"go back\". You plan the steps; Jev, a decision model that never writes text, picks which element on the page each step means (typically ~0.3 s; page loads take longer). Up to 4 steps joined by \"then\" or \"and\" run in order.\nWhen Jev is unsure it asks instead of guessing: status needs_clarification with options \u2014 answer with act(pick=<option pick>). Anything that looks hard to undo (buy, delete, send, post) comes back as needs_confirmation \u2014 answer with act(confirm=true) or act(confirm=false). Nothing risky runs unconfirmed.\nPrefer act over task whenever you can say the steps: measured on search, forms, pagination, state and a JS app, it was 10\u201360x faster and as or more accurate on all but search (see the README). Read each step's did: a click on a link marked (page does not exist) is a wrong pick, so say which one you meant.\nUse for clicking, typing, forms and multi-page flows. Do NOT use just to read a public page: fetch or read is cheaper. The tab stays where you left it between calls. Give session_id to work signed in (see session); without it act uses a logged-out scratch browser that closes after a few idle minutes.\nPrivate and internal addresses are refused: every URL is checked before it opens, and a step that lands off the public web is undone and reported as refused.\nReturns: status (done | failed | needs_clarification | needs_confirmation), steps (what ran and how each went), url, title, and the page's text when read_page=true.",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the part of the box it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its integration is not configured)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "One step, or up to 4 joined by then/and",
+                    "example": "open https://news.ycombinator.com then click new"
+                  },
+                  "pick": {
+                    "type": "string",
+                    "description": "Answer to needs_clarification: one option's pick"
+                  },
+                  "confirm": {
+                    "type": "boolean",
+                    "description": "Answer to needs_confirmation"
+                  },
+                  "read_page": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Also return the page's readable text afterwards"
+                  },
+                  "session_id": {
+                    "type": "string",
+                    "description": "Work signed in, in this saved session's browser. Without it, act uses a scratch browser that is logged out and forgotten when it closes"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/computer": {
+      "post": {
+        "operationId": "computer",
+        "summary": "Drive an Orgo cloud desktop: screenshot, click, type, key, scroll, bash, start, stop",
+        "description": "Drive an Orgo cloud computer: a full Linux desktop with a browser and a shell, running OFF this box. You are the eyes \u2014 take a screenshot, decide, act, screenshot again. Coordinates are pixels in the most recent screenshot.\nActions: screenshot | click(x, y[, button, double]) | type(text) | key(key, e.g. \"Return\", \"ctrl+c\") | scroll(x, y[, direction, amount]) | bash(command) | start | stop.\nDo NOT use for a web page that fetch or read can answer: this is a whole computer, billed per hour.\nbash is a real shell on that computer, inside your Orgo account.\nA computer bills until it is stopped. Call action=stop when you are finished.",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the part of the box it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its integration is not configured)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "screenshot",
+                      "click",
+                      "type",
+                      "key",
+                      "scroll",
+                      "bash",
+                      "start",
+                      "stop"
+                    ]
+                  },
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "button": {
+                    "type": "string",
+                    "enum": [
+                      "left",
+                      "right",
+                      "middle"
+                    ],
+                    "default": "left"
+                  },
+                  "double": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "For type"
+                  },
+                  "key": {
+                    "type": "string",
+                    "description": "For key: a key or a +-joined combination"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "up",
+                      "down",
+                      "left",
+                      "right"
+                    ],
+                    "default": "down"
+                  },
+                  "amount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50,
+                    "default": 3
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "For bash"
+                  },
+                  "screenshot_after": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Return a screenshot after the action, saving a round trip"
+                  },
+                  "computer_id": {
+                    "type": "string",
+                    "description": "Omit to use the pinned or running computer"
+                  },
+                  "screen_id": {
+                    "type": "string",
+                    "description": "Target this exact Orgo screen; unknown ids fail closed"
+                  },
+                  "context": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Include screen and focused Chrome element context"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task": {
+      "post": {
+        "operationId": "task",
+        "summary": "Hand a whole goal to an agent (Browser-Use in the browser, or Orgo on a desktop)",
+        "description": "Hand a whole goal to an agent and wait for its answer. Use it when you would rather not plan the steps yourself; you lose sight of each step, and every step costs model time.\nMeasured against act: 30\u2013130 s per job, and less reliable. It failed a two-URL cookie job 2 of 3 times and a JS to-do app 3 of 3. Check its answer before trusting it.\nsurface=\"browser\": Browser-Use works the goal in a hosted browser of its own, with a model choosing each step (one model call per step; a few steps take ~10-40 s). Several tasks run side by side. Give session_id to run signed in. Its browser is stopped when it finishes: to look at the last page again, read final_url. Returns status (done | failed | incomplete | timed_out | cancelled | stopped), answer, steps, urls, final_url, tokens and estimated_cost_usd.\nIt runs until it finishes even if you stop waiting: this endpoint cannot hear a client give up. task(cancel=true) stops every running browser task, and each still reports what it did.\nsurface=\"computer\": Orgo's hosted computer-use agent (Claude) works an Orgo desktop until the goal is done. Orgo ignores max_steps and caps its loop at 250 steps; timeout_seconds is the real bound, and hitting it aborts the run.\nDo NOT use when one fetch or read answers it, or when you can drive the steps yourself with act or computer: that is faster, cheaper and you see every step.",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the part of the box it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its integration is not configured)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "goal": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "What to achieve and what to report back, in plain words. Required to start a task",
+                    "example": "Find the top story on news.ycombinator.com and report its title"
+                  },
+                  "cancel": {
+                    "type": "boolean",
+                    "description": "browser only: stop the running task instead of starting one"
+                  },
+                  "surface": {
+                    "type": "string",
+                    "enum": [
+                      "browser",
+                      "computer"
+                    ]
+                  },
+                  "max_steps": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50,
+                    "default": 25,
+                    "description": "browser only: the most model steps it may take"
+                  },
+                  "timeout_seconds": {
+                    "type": "integer",
+                    "minimum": 30,
+                    "maximum": 1800,
+                    "description": "Hitting it stops the run. Default 300 on the browser (at most 900), 600 on a computer"
+                  },
+                  "computer_id": {
+                    "type": "string",
+                    "description": "computer only"
+                  },
+                  "session_id": {
+                    "type": "string",
+                    "description": "browser only: run signed in, on this saved session's profile. The session's own browser is closed first and the session waits for the task"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "operationId": "status",
+        "summary": "What is up, what is down and why, and what recent calls cost",
+        "description": "What is running, what is healthy, and what the last calls cost. Call this when a tool fails, before assuming a capability is missing. It answers honestly: a component that is down is reported as down, with the reason.",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tool's result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          },
+          "422": {
+            "description": "Refused, or the part of the box it needs is down: the body's error says which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This box does not offer the tool (its integration is not configured)"
+          }
+        }
+      }
+    },
+    "/api/v1/tools": {
+      "get": {
+        "operationId": "tools",
+        "summary": "The tools this box offers right now, with their input schemas",
+        "tags": [
+          "meta"
+        ],
+        "responses": {
+          "200": {
+            "description": "Offered tools",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token"
+          }
+        }
+      }
+    }
+  }
+}

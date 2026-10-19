@@ -1,0 +1,39 @@
+{
+  "manifest_version": "0.3",
+  "name": "browser-box-pp-mcp",
+  "display_name": "browser-box",
+  "version": "1.0.0",
+  "description": "Your own browser box from the command line, plus the memory the box does not keep: call history, a page cache, full-text search and batched reads that retry busy refusals.",
+  "author": {
+    "name": "CLI Printing Press"
+  },
+  "license": "Apache-2.0",
+  "server": {
+    "type": "binary",
+    "entry_point": "bin/browser-box-pp-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/bin/browser-box-pp-mcp",
+      "args": [],
+      "env": {
+        "BROWSER_BOX_TOKEN": "${user_config.browser_box_token}"
+      }
+    }
+  },
+  "user_config": {
+    "browser_box_token": {
+      "type": "string",
+      "title": "BROWSER_BOX_TOKEN",
+      "description": "Sets BROWSER_BOX_TOKEN for the browser-box MCP server.",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": [
+      "darwin",
+      "linux",
+      "win32"
+    ]
+  }
+}

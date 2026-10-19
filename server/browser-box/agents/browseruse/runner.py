@@ -42,6 +42,13 @@ SYSTEM_NOTE = ("This browser reaches only the public web: private, internal and 
                "retrying it.")
 
 
+def llm_options(spec: dict) -> dict:
+    """browser_use sends reasoning_effort only for models on its own reasoning list, which has no
+    OpenRouter models, so name ours. Without it the model reasons at full effort on every step."""
+    return dict(model=spec["model"], reasoning_models=[spec["model"]],
+                reasoning_effort=spec.get("reasoning_effort") or "low")
+
+
 def confine() -> None:
     from browser_use.browser.session import BrowserSession
     from browser_use.browser.session_manager import SessionManager
@@ -173,7 +180,7 @@ async def run(spec: dict) -> dict:
     confine()
     from browser_use import Agent, BrowserSession, ChatOpenAI, Tools
 
-    llm = ChatOpenAI(model=spec["model"], base_url=OPENROUTER, api_key=os.environ["OPENROUTER_API_KEY"])
+    llm = ChatOpenAI(**llm_options(spec), base_url=OPENROUTER, api_key=os.environ["OPENROUTER_API_KEY"])
     session = BrowserSession(browser_profile=profile(spec["cdp_url"]))
     await session.start()
     # It focuses the first tab it can see, and the only one it can see is the one opened for it.

@@ -3,7 +3,7 @@
   "info": {
     "title": "browser-box",
     "version": "1.0.0",
-    "description": "One self-hosted Chromium (Steel) with its tools behind one door. The same tools are served over MCP at /mcp. The calling agent is the brain; the box executes."
+    "description": "Hosted browsers (Browser Use Cloud, Browserbase as the fallback) behind one door. The same tools are served over MCP at /mcp. The calling agent is the brain; the box executes."
   },
   "servers": [
     {
@@ -108,7 +108,7 @@
       "post": {
         "operationId": "read",
         "summary": "Open a URL in the real browser and return its text, links and optionally a screenshot",
-        "description": "Open a URL in the real browser and return its rendered text, links and optionally a screenshot. Use when fetch returned nothing useful because the page renders with JavaScript.\nDo NOT use when: fetch already answered (this costs a browser slot), or the task needs clicking and typing rather than reading.\nOne browser runs at a time on this host; this call waits for the lane and then holds it.\nThe screenshot is a SECOND, independent page load, so on a page that changes between loads the picture and the text may not agree, and that navigation is NOT pre-flighted. Ask for it when the picture is the evidence.\nReturns: text, title, links, status_code, and screenshot_base64 (JPEG) when asked for.",
+        "description": "Open a URL in the real browser and return its rendered text, links and optionally a screenshot. Use when fetch returned nothing useful because the page renders with JavaScript.\nDo NOT use when: fetch already answered (this costs a browser slot), or the task needs clicking and typing rather than reading.\nEach read gets its own hosted browser (Browser Use Cloud, when status shows it), so reads run side by side up to the plan's limit; there is no queue on this host. If that browser fails or the site blocks it, engine=\"auto\" falls back to Browserbase when configured; the result's engine and fallback_reason say which ran and why. Reads are public and logged out: never for a page that needs a session.\nThe screenshot is of the same page load the text came from. Ask for it when the picture is the evidence.\nReturns: text, title, links, status_code, and screenshot_base64 (JPEG) when asked for.",
         "tags": [
           "tools"
         ],
@@ -153,7 +153,7 @@
                   },
                   "screenshot": {
                     "type": "boolean",
-                    "description": "Also return a full-page JPEG. Costs a SECOND page load, and that one is NOT redirect-checked \u2014 ask for it only when the picture is the evidence.",
+                    "description": "Also return a full-page JPEG of the page that was read.",
                     "default": false
                   },
                   "delay_ms": {
@@ -161,6 +161,30 @@
                     "minimum": 0,
                     "maximum": 15000,
                     "description": "Wait this long after load for late content."
+                  },
+                  "engine": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "browseruse",
+                      "browserbase"
+                    ],
+                    "default": "auto",
+                    "description": "auto: Browser Use Cloud, then Browserbase as the fallback when it is configured. browseruse: Browser Use only. browserbase: go straight to Browserbase (paid hours; public, logged-out pages only)."
+                  },
+                  "session_id": {
+                    "type": "string",
+                    "description": "Read in this session's browser, in a tab of its own (act's tab is left where it was). Hosted engine only"
+                  },
+                  "region": {
+                    "type": "string",
+                    "enum": [
+                      "us-west-2",
+                      "us-east-1",
+                      "eu-central-1",
+                      "ap-southeast-1"
+                    ],
+                    "description": "Browserbase only: read the page from this region. Implies engine=browserbase."
                   }
                 },
                 "required": [
@@ -177,7 +201,7 @@
       "post": {
         "operationId": "session",
         "summary": "Create, list or release a persistent browser session (logins survive between calls)",
-        "description": "Create, list or release a persistent browser session. A session keeps cookies and a profile across calls, which is how logged-in work is done.\ncreate -> returns session_id and the live view URL so a human can sign in once.\nlist   -> what is currently open. release -> closes it and frees the lane.\nCreating or releasing a session restarts the browser: act's tab starts again at about:blank.\nDo NOT create a session for one-off public reads; `read` is cheaper and releases itself.",
+        "description": "A browser of your own that stays open between calls, so act can work a page step by step and several agents can each drive their own at the same time. Every session starts fresh and clean, logged out, and is forgotten when it closes: this box keeps no logins and never uses a saved profile.\ncreate  -> a new session with its browser open: returns session_id and live_url (a view of that browser).\nlist    -> the sessions open now.\nrelease -> close the session's browser; the session is gone. An idle session closes itself after a few minutes.\nCalls on one session_id wait for each other; different sessions run side by side. live_url lets whoever holds it drive that browser: keep it to yourself.\nDo NOT create a session for a one-off read: read opens and closes its own browser. Do NOT use this for logged-in work: it has no logins, by design.",
         "tags": [
           "tools"
         ],
@@ -226,13 +250,12 @@
                   },
                   "session_id": {
                     "type": "string",
-                    "description": "Required for release"
+                    "description": "release: the session to close; without it, act's scratch browser"
                   },
-                  "timeout_seconds": {
-                    "type": "integer",
-                    "minimum": 60,
-                    "maximum": 3600,
-                    "default": 900
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "create only: a label for your own bookkeeping"
                   }
                 },
                 "required": [
@@ -249,7 +272,7 @@
       "post": {
         "operationId": "act",
         "summary": "Drive the browser in plain-words steps; Jev picks each element",
-        "description": "Drive the browser step by step in plain words: \"open https://\u2026\", \"click the Pricing link\", \"type 'running shoes' into the search box and press enter\", \"scroll down\", \"go back\". You plan the steps; Jev, a decision model that never writes text, picks which element on the page each step means (typically ~0.3 s; page loads take longer). Up to 4 steps joined by \"then\" or \"and\" run in order.\nWhen Jev is unsure it asks instead of guessing: status needs_clarification with options \u2014 answer with act(pick=<option pick>). Anything that looks hard to undo (buy, delete, send, post) comes back as needs_confirmation \u2014 answer with act(confirm=true) or act(confirm=false). Nothing risky runs unconfirmed.\nPrefer act over task whenever you can say the steps: measured on search, forms, pagination, state and a JS app, it was 10\u201360x faster and as or more accurate on all but search (see the README). Read each step's did: a click on a link marked (page does not exist) is a wrong pick, so say which one you meant.\nUse for clicking, typing, forms and multi-page flows. Do NOT use just to read a public page: fetch or read is cheaper. The tab stays where you left it between calls; creating or releasing a session restarts the browser and the tab starts again at about:blank.\nPrivate and internal addresses are refused inside the browser itself, on every request and redirect.\nReturns: status (done | failed | needs_clarification | needs_confirmation), steps (what ran and how each went), url, title, and the page's text when read_page=true.",
+        "description": "Drive the browser step by step in plain words: \"open https://\u2026\", \"click the Pricing link\", \"type 'running shoes' into the search box and press enter\", \"scroll down\", \"go back\". You plan the steps; Jev, a decision model that never writes text, picks which element on the page each step means (typically ~0.3 s; page loads take longer). Up to 4 steps joined by \"then\" or \"and\" run in order.\nWhen Jev is unsure it asks instead of guessing: status needs_clarification with options \u2014 answer with act(pick=<option pick>). Anything that looks hard to undo (buy, delete, send, post) comes back as needs_confirmation \u2014 answer with act(confirm=true) or act(confirm=false). Nothing risky runs unconfirmed.\nPrefer act over task whenever you can say the steps: measured on search, forms, pagination, state and a JS app, it was 10\u201360x faster and as or more accurate on all but search (see the README). Read each step's did: a click on a link marked (page does not exist) is a wrong pick, so say which one you meant.\nUse for clicking, typing, forms and multi-page flows. Do NOT use just to read a public page: fetch or read is cheaper. The tab stays where you left it between calls. Give session_id to use a browser of your own (see session); without it act uses one shared scratch browser that closes after a few idle minutes. Every browser is fresh and logged out.\nPrivate and internal addresses are refused: every URL is checked before it opens, and a step that lands off the public web is undone and reported as refused.\nReturns: status (done | failed | needs_clarification | needs_confirmation), steps (what ran and how each went), url, title, and the page's text when read_page=true.",
         "tags": [
           "tools"
         ],
@@ -305,6 +328,10 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Also return the page's readable text afterwards"
+                  },
+                  "session_id": {
+                    "type": "string",
+                    "description": "Work in this session's browser (see session). Without it, act uses one shared scratch browser, fresh and forgotten when it closes"
                   }
                 },
                 "additionalProperties": false
@@ -452,7 +479,7 @@
       "post": {
         "operationId": "task",
         "summary": "Hand a whole goal to an agent (Browser-Use in the browser, or Orgo on a desktop)",
-        "description": "Hand a whole goal to an agent and wait for its answer. Use it when you would rather not plan the steps yourself; you lose sight of each step, and every step costs model time.\nMeasured against act: 30\u2013130 s per job, and less reliable. It failed a two-URL cookie job 2 of 3 times and a JS to-do app 3 of 3. Check its answer before trusting it.\nsurface=\"browser\": Browser-Use works the goal in this box's browser, with a model choosing each step (one model call per step; a few steps take ~10-40 s). It gets a tab of its own and never touches act's tab. Private and internal addresses are refused inside the browser. Its tab is closed when it finishes: to look at the last page again, read final_url. Returns status (done | failed | incomplete | timed_out | cancelled | stopped), answer, steps, urls, final_url, tokens and estimated_cost_usd.\nIt holds the browser until it finishes, even if you stop waiting: this endpoint cannot hear a client give up. task(cancel=true) stops it, and the stopped task still reports what it did.\nsurface=\"computer\": Orgo's hosted computer-use agent (Claude) works an Orgo desktop until the goal is done. Orgo ignores max_steps and caps its loop at 250 steps; timeout_seconds is the real bound, and hitting it aborts the run.\nDo NOT use when one fetch or read answers it, or when you can drive the steps yourself with act or computer: that is faster, cheaper and you see every step.",
+        "description": "Hand a whole goal to an agent and wait for its answer. Use it when you would rather not plan the steps yourself; you lose sight of each step, and every step costs model time.\nMeasured against act: 30\u2013130 s per job, and less reliable. It failed a two-URL cookie job 2 of 3 times and a JS to-do app 3 of 3. Check its answer before trusting it.\nsurface=\"browser\": Browser-Use works the goal in a hosted browser of its own, with a model choosing each step (one model call per step; a few steps take ~10-40 s). Several tasks run side by side, each in a fresh, logged-out browser. Its browser is stopped when it finishes: to look at the last page again, read final_url. Returns status (done | failed | incomplete | timed_out | cancelled | stopped), answer, steps, urls, final_url, tokens and estimated_cost_usd.\nIt runs until it finishes even if you stop waiting: this endpoint cannot hear a client give up. task(cancel=true) stops every running browser task, and each still reports what it did.\nsurface=\"computer\": Orgo's hosted computer-use agent (Claude) works an Orgo desktop until the goal is done. Orgo ignores max_steps and caps its loop at 250 steps; timeout_seconds is the real bound, and hitting it aborts the run.\nDo NOT use when one fetch or read answers it, or when you can drive the steps yourself with act or computer: that is faster, cheaper and you see every step.",
         "tags": [
           "tools"
         ],

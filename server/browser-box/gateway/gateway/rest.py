@@ -1,6 +1,6 @@
 """A plain HTTP/JSON door beside MCP, for command lines, scripts and anything without an MCP client.
 
-Same bearer token, same handlers, same lane and guard: each tool is one POST whose body is the
+Same bearer token, same handlers, same checks: each tool is one POST whose body is the
 tool's arguments. It exists so the box has an OpenAPI description, which is what CLI generators
 (and curl users) work from. The spec is built from the tool cards themselves, so it cannot drift
 from what MCP callers are told.
@@ -83,7 +83,7 @@ def openapi() -> dict[str, Any]:
         "info": {
             "title": "browser-box",
             "version": VERSION,
-            "description": ("One self-hosted Chromium (Steel) with its tools behind one door. The same tools are "
+            "description": ("Hosted browsers (Browser Use Cloud, Browserbase as the fallback) behind one door. The same tools are "
                             "served over MCP at /mcp. The calling agent is the brain; the box executes."),
         },
         "servers": [{"url": "https://{host}", "variables": {"host": {"default": "your-box.example.com"}}}],

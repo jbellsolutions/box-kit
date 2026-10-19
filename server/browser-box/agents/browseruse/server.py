@@ -1,4 +1,10 @@
-"""agent-browseruse: hands one whole goal at a time to Browser-Use, in a tab of its own.
+"""agent-browseruse: hands a whole goal to Browser-Use, in a tab of its own.
+
+A task names the browser it runs in. With ``cdp_url`` it gets a browser of its own (a hosted
+Browser Use Cloud browser the gateway opened for it), and up to ``BU_PARALLEL`` such tasks run
+side by side, each in its own child process. Without it the task runs in the box's shared
+Chromium (``CDP_URL``), one at a time: concurrent Browser-Use runs on one Chromium were measured
+to break each other.
 
 This process never imports browser_use. Each task runs in a child process (runner.py) that is
 killed outright when the task times out or is cancelled, so a wedged agent cannot wedge this
@@ -12,8 +18,8 @@ entirely; without that, Browser-Use took over the first tab it found, which was 
 
 Endpoints, all behind the bearer token except health:
   GET  /api/health   liveness, model, whether a task is running, the child's self-check
-  POST /api/task     {goal, max_steps, timeout_seconds} -> the run, steps, answer, tokens, cost
-  POST /api/cancel   stop the running task: kill the child, close its tabs, then answer
+  POST /api/task     {goal, max_steps, timeout_seconds, cdp_url?, task_id?} -> the run, steps, answer, tokens, cost
+  POST /api/cancel   {task_id?} stop that task, or every task: kill the child, close its tabs, then answer
 """
 from __future__ import annotations
 
@@ -46,8 +52,14 @@ from websockets.asyncio.client import connect
 log = logging.getLogger("agent-browseruse")
 
 TOKEN = os.getenv("BU_TOKEN", "")
-CDP_URL = os.getenv("CDP_URL", "ws://steel:3000/")
+CDP_URL = os.getenv("CDP_URL", "")  # empty: no shared browser; each task brings its own
+# 0 (the default) = no cap of ours: as many tasks as Browser Use hands out browsers for. Set it only
+# as a memory guard on a small host; each task is a child process of ~100-300 MB.
+PARALLEL = int(os.getenv("BU_PARALLEL", "0")) or 10_000
 MODEL = os.getenv("BU_MODEL", "z-ai/glm-5.3-flash")
+# GLM 5.3 Flash reasons on every call and OpenRouter refuses to turn that off; left at its default
+# effort a step took ~40 s and up to 6k tokens. "low" brings it back to a few seconds.
+REASONING_EFFORT = os.getenv("BU_REASONING_EFFORT", "low")
 OPENROUTER = "https://openrouter.ai/api/v1"
 MAX_STEPS = int(os.getenv("BU_MAX_STEPS", "50"))
 MAX_SECONDS = int(os.getenv("BU_MAX_SECONDS", "900"))
@@ -58,8 +70,11 @@ KEEP_STEPS = 40
 # ── CDP, as a plain client: list, open and close tabs ─────────────────────────────
 async def dialable(cdp_url: str) -> str:
     """Chromium's DevTools refuses a Host header that is neither an IP nor localhost, and Steel
-    passes ours through, so a compose name like ws://steel:3000/ is dialled by IP."""
+    passes ours through, so a compose name like ws://steel:3000/ is dialled by IP. A wss:// address
+    (a hosted browser) is dialled as given: TLS needs its name."""
     parts = urlsplit(cdp_url)
+    if parts.scheme == "wss":
+        return cdp_url
     host = parts.hostname or ""
     try:
         ipaddress.ip_address(host)
@@ -72,10 +87,10 @@ async def dialable(cdp_url: str) -> str:
     return parts._replace(netloc=netloc).geturl()
 
 
-async def cdp(*calls: tuple[str, dict]) -> list[dict]:
+async def cdp(*calls: tuple[str, dict], url: str | None = None) -> list[dict]:
     """Run browser-level CDP calls in order on one short-lived connection."""
     out = []
-    async with connect(await dialable(CDP_URL), max_size=None, open_timeout=10) as ws:
+    async with connect(await dialable(url or CDP_URL), max_size=None, open_timeout=30) as ws:
         for mid, (method, params) in enumerate(calls, 1):
             await ws.send(json.dumps({"id": mid, "method": method, "params": params}))
             while True:
@@ -88,21 +103,21 @@ async def cdp(*calls: tuple[str, dict]) -> list[dict]:
     return out
 
 
-async def pages() -> dict[str, dict]:
-    [listed] = await cdp(("Target.getTargets", {}))
+async def pages(url: str | None = None) -> dict[str, dict]:
+    [listed] = await cdp(("Target.getTargets", {}), url=url)
     return {t["targetId"]: {"url": t.get("url", ""), "opener": t.get("openerId")}
             for t in listed["targetInfos"] if t.get("type") == "page"}
 
 
-async def open_tab() -> str:
-    [made] = await cdp(("Target.createTarget", {"url": "about:blank"}))
+async def open_tab(url: str | None = None) -> str:
+    [made] = await cdp(("Target.createTarget", {"url": "about:blank"}), url=url)
     return made["targetId"]
 
 
-async def close_task_tabs(foreign: dict[str, dict]) -> int:
+async def close_task_tabs(foreign: dict[str, dict], url: str | None = None) -> int:
     """Close every tab the task opened. A tab that was there before it, or a popup one of those
     opened meanwhile, is someone else's and stays. Never close the last tab: keep a blank one."""
-    now = await pages()
+    now = await pages(url)
     ours = [t for t, info in now.items() if t not in foreign and info["opener"] not in foreign]
     if not ours:
         return 0
@@ -110,7 +125,7 @@ async def close_task_tabs(foreign: dict[str, dict]) -> int:
     if len(ours) == len(now):
         calls.append(("Target.createTarget", {"url": "about:blank"}))
     calls += [("Target.closeTarget", {"targetId": t}) for t in ours]
-    await cdp(*calls)
+    await cdp(*calls, url=url)
     return len(ours)
 
 
@@ -144,14 +159,14 @@ async def costed(tokens: dict | None) -> dict[str, Any]:
 
 # ── the task ──────────────────────────────────────────────────────────────────────
 class Run:
-    def __init__(self) -> None:
+    def __init__(self, shared: bool = True) -> None:
+        self.shared = shared  # in the box's own Chromium, not a browser of its own
         self.proc: asyncio.subprocess.Process | None = None
         self.cancelled = asyncio.Event()
         self.finished = asyncio.Event()
 
 
-LOCK = asyncio.Lock()
-CURRENT: Run | None = None
+RUNS: dict[str, Run] = {}
 SELF_CHECK: str = "not run"
 
 
@@ -193,14 +208,15 @@ def _progress(path: Path) -> list[dict]:
     return rows
 
 
-async def run_task(run: Run, goal: str, max_steps: int, timeout: int) -> dict[str, Any]:
+async def run_task(run: Run, goal: str, max_steps: int, timeout: int, cdp_url: str | None = None) -> dict[str, Any]:
     started = time.monotonic()
     workdir = tempfile.mkdtemp(prefix="bu-task-")
     progress, result_path, errlog = (Path(workdir) / n for n in ("progress.jsonl", "result.json", "stderr.log"))
-    foreign = await pages()
-    own = await open_tab()
-    spec = {"goal": goal, "max_steps": max_steps, "cdp_url": await dialable(CDP_URL), "model": MODEL,
-            "own_tab": own, "foreign_tabs": list(foreign), "progress": str(progress), "result": str(result_path)}
+    browser = cdp_url or CDP_URL
+    foreign = await pages(browser)
+    own = await open_tab(browser)
+    spec = {"goal": goal, "max_steps": max_steps, "cdp_url": await dialable(browser), "model": MODEL,
+            "reasoning_effort": REASONING_EFFORT, "own_tab": own, "foreign_tabs": list(foreign), "progress": str(progress), "result": str(result_path)}
     outcome = "finished"
     try:
         with errlog.open("wb") as err:
@@ -225,7 +241,7 @@ async def run_task(run: Run, goal: str, max_steps: int, timeout: int) -> dict[st
             _kill(run.proc)
             await run.proc.wait()
         try:
-            closed = await close_task_tabs(foreign)
+            closed = await close_task_tabs(foreign, browser)
         except Exception as exc:
             closed = None
             log.warning("could not close the task's tabs: %s", exc)
@@ -274,20 +290,22 @@ def finite(value):
 
 
 async def health(_request: Request) -> JSONResponse:
-    try:
-        await cdp(("Browser.getVersion", {}))
-        browser = "reachable"
-    except Exception as exc:
-        browser = f"unreachable: {type(exc).__name__}: {exc}"[:200]
+    if CDP_URL:
+        try:
+            await cdp(("Browser.getVersion", {}))
+            browser = "reachable"
+        except Exception as exc:
+            browser = f"unreachable: {type(exc).__name__}: {exc}"[:200]
+    else:
+        browser = "none shared: each task brings its own"
     return JSONResponse({
-        "ok": SELF_CHECK == "ok" and browser == "reachable" and bool(os.getenv("OPENROUTER_API_KEY")),
-        "busy": LOCK.locked(), "model": MODEL, "llm_key": bool(os.getenv("OPENROUTER_API_KEY")),
-        "self_check": SELF_CHECK, "browser": browser,
+        "ok": SELF_CHECK == "ok" and not browser.startswith("unreachable") and bool(os.getenv("OPENROUTER_API_KEY")),
+        "busy": len(RUNS) >= PARALLEL, "running": len(RUNS), "parallel": PARALLEL, "model": MODEL,
+        "llm_key": bool(os.getenv("OPENROUTER_API_KEY")), "self_check": SELF_CHECK, "browser": browser,
     })
 
 
 async def task(request: Request) -> JSONResponse:
-    global CURRENT
     if not authorized(request):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     if not os.getenv("OPENROUTER_API_KEY"):
@@ -299,39 +317,54 @@ async def task(request: Request) -> JSONResponse:
         goal = str(body["goal"]).strip()
         max_steps = max(1, min(int(body.get("max_steps", 25)), MAX_STEPS))
         timeout = max(30, min(int(body.get("timeout_seconds", 300)), MAX_SECONDS))
+        cdp_url = str(body.get("cdp_url") or "") or None
+        task_id = str(body.get("task_id") or "") or os.urandom(6).hex()
     except (ValueError, KeyError, TypeError):
-        return JSONResponse({"error": "send {goal, max_steps?, timeout_seconds?}"}, status_code=400)
+        return JSONResponse({"error": "send {goal, max_steps?, timeout_seconds?, cdp_url?, task_id?}"}, status_code=400)
     if not goal:
         return JSONResponse({"error": "goal is empty"}, status_code=400)
-    if LOCK.locked():
-        return JSONResponse({"error": "a task is already running"}, status_code=409)
-    async with LOCK:
-        CURRENT = run = Run()
-        try:
-            out = await run_task(run, goal, max_steps, timeout)
-        except Exception as exc:
-            log.exception("task failed")
-            return JSONResponse({"error": f"{type(exc).__name__}: {exc}"[:300]}, status_code=502)
-        finally:
-            run.finished.set()
-            CURRENT = None
-    return JSONResponse(finite(out))
+    if cdp_url and urlsplit(cdp_url).scheme not in ("ws", "wss"):
+        return JSONResponse({"error": "cdp_url must be a ws:// or wss:// DevTools address"}, status_code=400)
+    if not cdp_url and not CDP_URL:
+        return JSONResponse({"error": "no shared browser here: send the cdp_url of a browser for this task"}, status_code=400)
+    # Checked and taken with no await between: two requests cannot both get the last slot.
+    if task_id in RUNS:
+        return JSONResponse({"error": f"task {task_id} is already running"}, status_code=409)
+    if len(RUNS) >= PARALLEL:
+        return JSONResponse({"error": f"{PARALLEL} tasks are already running (BU_PARALLEL)"}, status_code=409)
+    if not cdp_url and any(r.shared for r in RUNS.values()):
+        return JSONResponse({"error": "a task is already running in the shared browser"}, status_code=409)
+    RUNS[task_id] = run = Run(shared=not cdp_url)
+    try:
+        out = await run_task(run, goal, max_steps, timeout, cdp_url)
+    except Exception as exc:
+        log.exception("task failed")
+        return JSONResponse({"error": f"{type(exc).__name__}: {str(exc).split('?')[0]}"[:300]}, status_code=502)
+    finally:
+        run.finished.set()
+        RUNS.pop(task_id, None)
+    return JSONResponse(finite({**out, "task_id": task_id}))
 
 
 async def cancel(request: Request) -> JSONResponse:
     if not authorized(request):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
-    run = CURRENT
-    if run is None:
-        return JSONResponse({"cancelled": False, "detail": "no task running"})
-    run.cancelled.set()
     try:
-        # Answer only once the child is dead and its tabs are closed: the caller releases the
-        # browser lane on this reply, and nothing of the task may outlive that.
-        await asyncio.wait_for(run.finished.wait(), 20)
+        wanted = str((await request.json()).get("task_id") or "")
+    except (ValueError, AttributeError):
+        wanted = ""
+    runs = [r for tid, r in RUNS.items() if not wanted or tid == wanted]
+    if not runs:
+        return JSONResponse({"cancelled": False, "detail": "no task running"})
+    for run in runs:
+        run.cancelled.set()
+    try:
+        # Answer only once the children are dead and their tabs closed: the caller releases the
+        # browser on this reply, and nothing of a task may outlive that.
+        await asyncio.wait_for(asyncio.gather(*(r.finished.wait() for r in runs)), 20)
     except TimeoutError:
         return JSONResponse({"cancelled": False, "detail": "the task did not stop within 20 s"}, status_code=504)
-    return JSONResponse({"cancelled": True})
+    return JSONResponse({"cancelled": True, "count": len(runs)})
 
 
 async def self_check() -> None:

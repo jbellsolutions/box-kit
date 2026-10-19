@@ -1,7 +1,7 @@
 ---
-description: Click, type and move through a site in the self-hosted browser, step by step in plain words — or hand the whole goal over when steering each step is not worth it.
+description: Click, type and move through a site in a hosted browser, step by step in plain words — or hand the whole goal over when steering each step is not worth it.
 argument-hint: <what to do on which site>
-allowed-tools: [mcp__browser-box__act, mcp__browser-box__task, mcp__browser-box__read, mcp__browser-box__fetch, mcp__browser-box__status]
+allowed-tools: [mcp__browser-box__act, mcp__browser-box__session, mcp__browser-box__task, mcp__browser-box__read, mcp__browser-box__fetch, mcp__browser-box__status]
 ---
 
 The user wants something done on a website: $ARGUMENTS
@@ -17,7 +17,10 @@ Use the browser-box MCP server.
      `act(pick=…)`; if none does, say so rather than guessing.
    - `needs_confirmation`: this step is hard to undo. Only confirm what the user asked for
      explicitly; otherwise `act(confirm=false)` and ask them.
-   - `act` returns the url and title, not the text: `read(url)` to read the page.
+   - `act` returns the url and title, not the text: pass `read_page=true`, or `read(url)`.
+   - Every browser is fresh and logged out. For a browser of your own, `session(action="create")`
+     and pass its `session_id` to `act`; `release` it when done. Without one, `act` uses a shared
+     scratch browser. This box keeps no logins: if the site needs one, say so rather than trying.
 3. **If the goal is long or you would rather not steer**, use
    `task(goal, surface="browser")`: an agent plans the steps. It reports every step and what
    it cost. If you stop waiting it keeps running, so call `task(cancel=true)` to stop it.

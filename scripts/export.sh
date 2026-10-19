@@ -22,9 +22,11 @@ rm -f "$KIT/server/data-box/tests/databox/test_drift.py"  # checks the source re
 cp -R "$KIT/overlays/data-box/." "$KIT/server/data-box/"
 
 # Owner-specific values -> placeholders.
-find "$KIT/server" -type f \( -name '*.py' -o -name '*.md' -o -name '*.json' -o -name '*.yml' -o -name 'Caddyfile*' -o -name '*.example' \) -print0 |
+find "$KIT/server" -type f \( -name '*.py' -o -name '*.md' -o -name '*.json' -o -name '*.yml' -o -name '*.yaml' -o -name '*.sh' -o -name '*.go' -o -name 'Caddyfile*' -o -name '*.example' \) -print0 |
   xargs -0 sed -i '' -E \
     -e 's/64-225-11-38\.sslip\.io/your-box.example.com/g' \
+    -e 's/161-35-251-195\.sslip\.io/your-box.example.com/g' \
+    -e 's/161\.35\.251\.195/your-box.example.com/g' \
     -e 's/167-71-241-147\.sslip\.io/your-data-box.example.com/g' \
     -e 's/167\.71\.241\.147\.nip\.io/your-data-box.example.com/g'
 

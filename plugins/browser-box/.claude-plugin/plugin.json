@@ -1,7 +1,7 @@
 {
   "name": "browser-box",
-  "version": "0.1.0",
-  "description": "One self-hosted browser behind one MCP endpoint: fetch, read, session and status always; act (plain-words steps), task (hand over a goal) and computer when configured. The agent calling it is the brain.",
+  "version": "0.2.0",
+  "description": "Hosted browsers behind one MCP endpoint (Browser Use Cloud, Browserbase as the emergency lane): fetch and status always; read, session, act (plain-words steps), task (hand over a goal) and computer when configured. The agent calling it is the brain.",
   "author": {
     "name": "AI Integraterz",
     "url": "https://github.com/jbellsolutions"
@@ -13,7 +13,7 @@
     "browser",
     "automation",
     "mcp",
-    "steel",
+    "browser-use",
     "self-hosted",
     "scraping"
   ],

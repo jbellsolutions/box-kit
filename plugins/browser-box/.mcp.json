@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "browser-box is ONE gateway in front of one self-hosted browser. Attach by URL — there is",
+    "browser-box is ONE gateway in front of hosted browsers. Attach by URL — there is",
     "no local checkout to drift and no second code path.",
     "Set BROWSER_BOX_URL and BROWSER_BOX_TOKEN before use. The default below is a box running",
     "on this machine via `make up`; point it at your droplet when you have one."

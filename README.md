@@ -4,11 +4,19 @@ Two small servers that give any AI agent real web abilities, each behind one MCP
 
 | Server | What it gives your agent | Free out of the box | Add your own keys for |
 |---|---|---|---|
-| **browser-box** | A real browser it drives: read JavaScript pages, click, type, log in and stay logged in, screenshots | `fetch`, `read`, `session`, `status` | `task` (Browser-Use, needs an OpenRouter key), `computer` (an Orgo cloud desktop) |
+| **browser-box** | Hosted browsers it drives: read JavaScript pages, click, type, screenshots, many browsers at once. Every browser is fresh and logged out | `fetch`, `status` | `read`, `session`, `act` with a Browser Use key (pay as you go, $1 free credit, no subscription); Browserbase as an emergency backup (its $0 Free plan works); `task` (adds an OpenRouter key), `computer` (an Orgo cloud desktop) |
 | **data-box** | Web data: any public URL to markdown, text, HTML or links, with a cost cap on every call | `scrape` (direct fetch), `job`, `status` | paid scraping sources (Firecrawl, Bright Data, Decodo, Apify) as they are wired in |
 
 You run them yourself — on your own computer (Docker) or a small server — with **your own**
 keys. Nothing here calls anyone else's server or bills anyone else's account.
+
+**No subscription needed to get started.** browser-box needs one key to browse:
+`BROWSER_USE_API_KEY` from [cloud.browser-use.com](https://cloud.browser-use.com) — pay as you go,
+$1 of free credit when you sign up with Google, GitHub or Microsoft (no card), then $0.02 per
+browser-hour, and 10 browsers at once before you have paid anything. For a backup lane, add
+`BROWSERBASE_API_KEY` on [Browserbase](https://www.browserbase.com)'s $0 Free plan (1 browser-hour a
+month, 3 at once). data-box's free `scrape` needs no key at all. Prices are the providers'
+published ones as of 2026-10-19.
 
 ## Quick start (your own computer)
 
@@ -49,10 +57,13 @@ data-box) with `Authorization: Bearer <token>` and the tool's arguments as JSON.
 
 ## Costs — who pays for what
 
-- The software is free (MIT). Chromium runs inside browser-box (Steel, open source), so reading
-  and browsing pages costs nothing but your machine.
+- The software is free (MIT). No browser runs on your machine or server: browser-box opens
+  hosted browsers on **Browser Use Cloud** (the main lane, $0.02 per browser-hour, billed by the
+  minute; a read costs about $0.0003) and falls back to **Browserbase** only when Browser Use
+  cannot open one. Neither needs a subscription. `status` shows what each has spent.
 - **Paid only if you add a key**, billed to your account with that provider:
-  OpenRouter (browser-box `task`, fractions of a cent per step), Orgo (per hour while a cloud
+  Browser Use and Browserbase (above), TypeSafe (browser-box `act`, about $0.042 per million
+  input tokens), OpenRouter (browser-box `task`, fractions of a cent per step), Orgo (per hour while a cloud
   desktop runs — stop it when done), Firecrawl / Bright Data / Decodo / Apify (data-box, per
   request). Every data-box call has a `max_cost_usd` cap (default $0.05); a paid step that
   would exceed it never starts.
@@ -61,14 +72,14 @@ data-box) with `Authorization: Bearer <token>` and the tool's arguments as JSON.
 ## Run it on a server
 
 So agents elsewhere (a cloud VM, a teammate) can reach it: [docs/SELF-HOST.md](docs/SELF-HOST.md)
-— server size, HTTPS, and the firewall rule that keeps the browser off your private network.
+— server size and HTTPS.
 
 ## What's inside
 
 ```
 plugins/browser-box, plugins/data-box   Claude Code plugins (MCP config, skills, commands)
 hermes/                                 the same skills + a config snippet for Hermes
-server/browser-box                      the browser server (Docker compose)
+server/browser-box                      the browser gateway (Docker compose; the browsers are hosted)
 server/data-box                         the data server (Docker, or plain Python)
 docs/SELF-HOST.md                       running it on a server
 ```

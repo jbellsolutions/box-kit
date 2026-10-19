@@ -19,5 +19,5 @@
    agents pick the servers up.
 
 Coming from Super Browser: remove or disable the old `super-browser` entry once your agents use
-these. Browsing, logins and posting map to browser-box (`read`, `act`, `session`, `task`); page
+these. Browsing and clicking through public pages map to browser-box (`read`, `act`, `session`, `task`); page
 data maps to data-box (`scrape`, `job`).
